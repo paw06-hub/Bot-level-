@@ -436,15 +436,52 @@ client.on('messageCreate', async (message) => {
     if (command === 'hlp' || command === 'help') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('📌 Bảng Lệnh Hệ Thống Bot')
+            .setTitle('📌 Danh Sách Lệnh Bot Leveling')
+            .setThumbnail(message.guild.iconURL({ dynamic: true }))
             .addFields(
-                { name: '👤 Hồ Sơ & Cài Đặt', value: '`.profile`, `.cap`, `.bxh`, `.thongbao dm`' },
-                { name: '🎁 Phần Thưởng & Cửa Hàng', value: '`.daily`, `.quydoi <exp>`, `.tien`, `.shop`, `.mua <id>`' },
-                { name: '🎮 Nhiệm Vụ & Minigames', value: '`.nhiemvu`, `.nhan-nv`, `.doanso <1-5> <tiền>`, `.oantuti <keo/bao/bua> <tiền>`' },
-                { name: '🛡️ Cảnh Cáo', value: '`.warns`' },
-                { name: '🛠️ Admin', value: '`.thongbao-dm`, `.caidat-thongke`, `.warn`, `.cam-tu`, `.xoa-cam-tu`, `.caidat-kenh`, `.cam-exp`, `.x2-exp`, `.set-lv`, `.cong-exp`, `.tru-exp`, `.reset-user`, `.reset-all` ' }
+                { 
+                    name: '👤 Lệnh Cho Thành Viên', 
+                    value: '`.profile` / `.stats` : Xem hồ sơ chi tiết (Cấp, EXP, số tin nhắn, ngày tham gia).\n' +
+                           '`.cap` / `.thongtin` : Xem cấp độ & EXP nhanh.\n' +
+                           '`.bxh` / `.topserver` : Xem bảng xếp hạng cấp độ server.\n' +
+                           '`.thongbao dm` : Bật/Tắt nhận tin nhắn riêng khi lên cấp.' 
+                },
+                { 
+                    name: '🎁 Phần Thưởng & Cửa Hàng', 
+                    value: '`.daily` : Điểm danh nhận quà hàng ngày (Xu + EXP).\n' +
+                           '`.quydoi <exp>` : Đổi EXP lấy Xu (Tỷ lệ 10:1).\n' +
+                           '`.tien` / `.vi` : Kiểm tra số dư ví Xu.\n' +
+                           '`.shop` : Xem danh sách vật phẩm trong cửa hàng.\n' +
+                           '`.mua <id>` : Mua vật phẩm (Thẻ X2 EXP, Danh hiệu).' 
+                },
+                { 
+                    name: '🎮 Nhiệm Vụ & Minigames', 
+                    value: '`.nhiemvu` : Xem tiến độ nhiệm vụ hàng ngày.\n' +
+                           '`.nhan-nv` : Nhận thưởng khi hoàn thành nhiệm vụ.\n' +
+                           '`.doanso <số_1-5> <tiền>` : Minigames đoán số đổi thưởng.\n' +
+                           '`.oantuti <keo/bao/bua> <tiền>` : Minigames oẳn tù tì với bot.' 
+                },
+                { 
+                    name: '🛡️ Cảnh Cáo & Tiện Ích', 
+                    value: '`.warns` : Xem lịch sử cảnh cáo của bạn hoặc thành viên khác.' 
+                },
+                { 
+                    name: '🛠️ Lệnh Dành Riêng Cho Quản Trị Viên (Admin)', 
+                    value: '`.thongbao-dm @User/all <nội_dung>` : Gửi tin nhắn DM riêng tư.\n' +
+                           '`.caidat-thongke` : Tự động tạo kênh thống kê server.\n' +
+                           '`.warn @User <lý_do>` : Cảnh cáo và trừ 100 EXP.\n' +
+                           '`.cam-tu <từ>` / `.xoa-cam-tu <từ>` : Quản lý từ cấm chat.\n' +
+                           '`.caidat-kenh` : Đặt kênh thông báo lên cấp.\n' +
+                           '`.cam-exp` : Bật/Tắt nhận EXP tại kênh hiện tại.\n' +
+                           '`.x2-exp` : Bật/Tắt chế độ X2 EXP toàn server.\n' +
+                           '`.set-lv @User <cấp>` : Chỉnh sửa cấp độ trực tiếp.\n' +
+                           '`.cong-exp` / `.tru-exp @User <số_exp>` : Cộng/trừ điểm EXP.\n' +
+                           '`.reset-user` / `.reset-all` : Đặt lại dữ liệu người dùng/server.' 
+                }
             )
+            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
             .setTimestamp();
+
         return message.channel.send({ embeds: [helpEmbed] });
     }
 
