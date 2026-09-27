@@ -8,7 +8,7 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => res.send('🤖 Bot Online 24/7!'));
+app.get('/', (req, res) => res.send('🤖 Bot Discord đang hoạt động Online 24/7!'));
 app.get('/ping', (req, res) => res.status(200).send('PONG'));
 app.listen(PORT, () => console.log(`🌐 Server Web lắng nghe tại port ${PORT}`));
 
@@ -50,7 +50,6 @@ function loadData() {
     }
 }
 
-// Ghi file bất đồng bộ sau 3 giây dừng thao tác (giảm tải đĩa)
 function queueSave() {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
@@ -119,12 +118,10 @@ async function updateServerStats(guild) {
 // --- 5. EVENT LISTENERS ---
 client.once('ready', () => {
     memoryDb = loadData();
-    console.log(`🤖 Bot JangJii sẵn sàng: ${client.user.tag}`);
+    console.log(`🤖 Bot đã sẵn sàng: ${client.user.tag}`);
     
-    // Cập nhật thống kê 10p/lần
     setInterval(() => client.guilds.cache.forEach(g => updateServerStats(g)), 600000);
 
-    // Dọn dẹp cache cooldown hết hạn mỗi giờ (Tránh ngốn RAM)
     setInterval(() => {
         const now = Date.now();
         for (const [key, time] of cooldowns.entries()) {
@@ -136,7 +133,6 @@ client.once('ready', () => {
 client.on('guildMemberAdd', member => updateServerStats(member.guild));
 client.on('guildMemberRemove', member => updateServerStats(member.guild));
 
-// TÍNH EXP VOICE
 client.on('voiceStateUpdate', (oldState, newState) => {
     const userId = newState.id;
     const guildId = newState.guild.id;
@@ -169,7 +165,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
-// XỬ LÝ CHAT & LỆNH
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -180,7 +175,6 @@ client.on('messageCreate', async (message) => {
     const guildConfig = memoryDb[guildId].config;
     const userData = memoryDb[guildId].users[userId];
 
-    // Lọc từ cấm
     const hasBannedWord = guildConfig.bannedWords.some(word => message.content.toLowerCase().includes(word));
     if (hasBannedWord && !ADMIN_IDS.includes(userId) && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
         await message.delete().catch(() => {});
@@ -189,7 +183,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // Đếm tin nhắn & Nhiệm vụ
     const today = new Date().toLocaleDateString('vi-VN');
     if (userData.quests.date !== today) {
         userData.quests = { msgCount: 0, claimed: false, date: today };
@@ -201,10 +194,8 @@ client.on('messageCreate', async (message) => {
         queueSave();
     }
 
-    // Lọc spam tin ngắn
     if (message.content.trim().length < 3 && !message.content.startsWith(PREFIX)) return;
 
-    // Cộng EXP Chat
     if (!guildConfig.noXpChannels.includes(message.channel.id) && !message.content.startsWith(PREFIX)) {
         const cooldownKey = `${guildId}_${userId}`;
         const lastMsgTime = cooldowns.get(cooldownKey) || 0;
@@ -241,7 +232,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // LỆNH LÀM VIỆC
     if (!message.content.startsWith(PREFIX)) return;
 
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
@@ -254,7 +244,7 @@ client.on('messageCreate', async (message) => {
         return message.reply('🚫 Quyền truy cập bị từ chối!');
     }
 
-    // --- BỘ LỆNH ADMIN ---
+    // --- LỆNH ADMIN ---
     if (command === 'thongbao-dm') {
         const target = message.mentions.users.first();
         const subCommand = args[0]?.toLowerCase();
@@ -279,7 +269,7 @@ client.on('messageCreate', async (message) => {
                 try {
                     await member.send({ embeds: [embed] });
                     success++;
-                    await new Promise(res => setTimeout(res, 1000)); // Delay 1s chống rate limit
+                    await new Promise(res => setTimeout(res, 1000));
                 } catch {
                     fail++;
                 }
@@ -433,7 +423,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // --- BỘ LỆNH MEMBER & MINIGAMES ---
+    // --- LỆNH THÀNH VIÊN & MINIGAMES ---
     if (command === 'thongbao') {
         if (args[0]?.toLowerCase() === 'dm') {
             userData.dmNotification = !userData.dmNotification;
@@ -446,7 +436,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'hlp' || command === 'help') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('📌 Bảng Lệnh Bot JangJii')
+            .setTitle('📌 Bảng Lệnh Hệ Thống Bot')
             .addFields(
                 { name: '👤 Hồ Sơ & Cài Đặt', value: '`.profile`, `.cap`, `.bxh`, `.thongbao dm`' },
                 { name: '🎁 Phần Thưởng & Cửa Hàng', value: '`.daily`, `.quydoi <exp>`, `.tien`, `.shop`, `.mua <id>`' },
@@ -594,7 +584,7 @@ client.on('messageCreate', async (message) => {
                 { name: '💬 Tin Nhắn', value: `\`${uData.messages || 0} tin\``, inline: true },
                 { name: '📩 DM Lên Cấp', value: `\`${uData.dmNotification ? 'Bật' : 'Tắt'}\``, inline: true }
             )
-            .setFooter({ text: 'Hệ Thống Hồ Sơ JangJii' })
+            .setFooter({ text: 'Hệ Thống Hồ Sơ' })
             .setTimestamp();
 
         return message.channel.send({ embeds: [embed] });
