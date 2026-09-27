@@ -68,9 +68,28 @@ function getXpForNextLevel(level) {
 function initGuild(guildId) {
     if (!memoryDb[guildId]) {
         memoryDb[guildId] = {
-            config: { logChannel: null, noXpChannels: [], isDoubleXp: false, bannedWords: [], statsChannels: {} },
+            config: { 
+                logChannel: null, 
+                noXpChannels: [], 
+                isDoubleXp: false, 
+                bannedWords: [], 
+                statsChannels: {},
+                shopItems: [
+                    { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
+                    { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
+                    { id: 3, name: 'Danh hiệu: 👑 Đại Gia Server', price: 2000, type: 'title', title: '👑 Đại Gia Server' }
+                ]
+            },
             users: {}
         };
+    }
+    // Đảm bảo server cũ đã có sẵn shopItems nếu tải từ bản cũ lên
+    if (!memoryDb[guildId].config.shopItems) {
+        memoryDb[guildId].config.shopItems = [
+            { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
+            { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
+            { id: 3, name: 'Danh hiệu: 👑 Đại Gia Server', price: 2000, type: 'title', title: '👑 Đại Gia Server' }
+        ];
     }
 }
 
@@ -84,12 +103,6 @@ function initUser(guildId, userId) {
         };
     }
 }
-
-const SHOP_ITEMS = [
-    { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
-    { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
-    { id: 3, name: 'Danh hiệu: 👑 Đại Gia Server', price: 2000, type: 'title', title: '👑 Đại Gia Server' }
-];
 
 // --- 4. HÀM CẬP NHẬT THỐNG KÊ SERVER ---
 async function updateServerStats(guild) {
@@ -237,7 +250,12 @@ client.on('messageCreate', async (message) => {
     const args = message.content.slice(PREFIX.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    const adminCommands = ['caidat-kenh', 'cam-exp', 'set-lv', 'cong-exp', 'tru-exp', 'reset-user', 'reset-all', 'x2-exp', 'warn', 'cam-tu', 'xoa-cam-tu', 'caidat-thongke', 'thongbao-dm'];
+    const adminCommands = [
+        'caidat-kenh', 'cam-exp', 'set-lv', 'cong-exp', 'tru-exp', 
+        'reset-user', 'reset-all', 'x2-exp', 'warn', 'cam-tu', 
+        'xoa-cam-tu', 'caidat-thongke', 'thongbao-dm', 'set-title',
+        'shop-add', 'shop-remove'
+    ];
     const isAdmin = ADMIN_IDS.includes(message.author.id) || message.member.permissions.has(PermissionFlagsBits.Administrator);
 
     if (adminCommands.includes(command) && !isAdmin) {
@@ -423,6 +441,66 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    if (command === 'set-title') {
+        const target = message.mentions.users.first();
+        const newTitle = args.slice(1).join(' ');
+
+        if (!target || !newTitle) {
+            return message.reply('⚠️ **Cú pháp đúng:** `.set-title @User <tên_danh_hiệu_mới>`');
+        }
+
+        initUser(guildId, target.id);
+        memoryDb[guildId].users[target.id].title = newTitle;
+        queueSave();
+
+        return message.reply(`✅ Đã đổi danh hiệu của ${target} thành: \`${newTitle}\``);
+    }
+
+    if (command === 'shop-add') {
+        const content = args.join(' ');
+        const parts = content.split('|').map(p => p.trim());
+
+        if (parts.length < 3) {
+            return message.reply(
+                '⚠️ **Cú pháp không đúng!**\n' +
+                '• Thẻ X2: `.shop-add Thẻ X2 | 500 | boost`\n' +
+                '• Danh hiệu: `.shop-add Danh hiệu Pro | 1000 | title | 👑 Siêu Sao`'
+            );
+        }
+
+        const name = parts[0];
+        const price = parseInt(parts[1]);
+        const type = parts[2].toLowerCase();
+        const titleContent = parts[3] || name;
+
+        if (isNaN(price) || price <= 0 || (type !== 'boost' && type !== 'title')) {
+            return message.reply('❌ Giá tiền phải là số hợp lệ và type phải là `boost` hoặc `title`!');
+        }
+
+        const currentShop = guildConfig.shopItems;
+        const newId = currentShop.length > 0 ? Math.max(...currentShop.map(i => i.id)) + 1 : 1;
+
+        const newItem = { id: newId, name, price, type, title: type === 'title' ? titleContent : undefined };
+        currentShop.push(newItem);
+        queueSave();
+
+        return message.reply(`✅ Đã thêm vật phẩm **[ID ${newId}]${name}** vào cửa hàng với giá **${price} Xu**!`);
+    }
+
+    if (command === 'shop-remove') {
+        const itemId = parseInt(args[0]);
+        if (isNaN(itemId)) return message.reply('⚠️ Vui lòng nhập ID vật phẩm cần xóa! Cú pháp: `.shop-remove <id>`');
+
+        const currentShop = guildConfig.shopItems;
+        const index = currentShop.findIndex(i => i.id === itemId);
+        if (index === -1) return message.reply(`❌ Không tìm thấy vật phẩm có ID là **${itemId}** trong cửa hàng!`);
+
+        const removed = currentShop.splice(index, 1)[0];
+        queueSave();
+
+        return message.reply(`🗑️ Đã xóa vật phẩm **${removed.name} (ID:${itemId})** khỏi cửa hàng.`);
+    }
+
     // --- LỆNH THÀNH VIÊN & MINIGAMES ---
     if (command === 'thongbao') {
         if (args[0]?.toLowerCase() === 'dm') {
@@ -452,7 +530,7 @@ client.on('messageCreate', async (message) => {
                            '`.quydoi <exp>` : Đổi EXP lấy Xu (Tỷ lệ 10:1).\n' +
                            '`.tien` / `.vi` : Kiểm tra số dư ví Xu.\n' +
                            '`.shop` : Xem danh sách vật phẩm trong cửa hàng.\n' +
-                           '`.mua <id>` : Mua vật phẩm (Thẻ X2 EXP, Danh hiệu).' 
+                           '`.mua <id>` : Mua vật phẩm.' 
                 },
                 { 
                     name: '🎮 Nhiệm Vụ & Minigames', 
@@ -470,6 +548,9 @@ client.on('messageCreate', async (message) => {
                     value: '`.thongbao-dm @User/all <nội_dung>` : Gửi tin nhắn DM riêng tư.\n' +
                            '`.caidat-thongke` : Tự động tạo kênh thống kê server.\n' +
                            '`.warn @User <lý_do>` : Cảnh cáo và trừ 100 EXP.\n' +
+                           '`.set-title @User <danh_hiệu>` : Tùy chỉnh danh hiệu cho thành viên.\n' +
+                           '`.shop-add <tên> | <giá> | <boost/title>` : Thêm món vào shop.\n' +
+                           '`.shop-remove <id>` : Xóa vật phẩm khỏi shop.\n' +
                            '`.cam-tu <từ>` / `.xoa-cam-tu <từ>` : Quản lý từ cấm chat.\n' +
                            '`.caidat-kenh` : Đặt kênh thông báo lên cấp.\n' +
                            '`.cam-exp` : Bật/Tắt nhận EXP tại kênh hiện tại.\n' +
@@ -513,22 +594,37 @@ client.on('messageCreate', async (message) => {
     if (command === 'tien' || command === 'vi') return message.reply(`💰 Số dư ví: **${userData.coins || 0} Xu**.`);
 
     if (command === 'shop') {
-        let shopText = SHOP_ITEMS.map(i => `**ID ${i.id}**:${i.name} — \`${i.price} Xu\``).join('\n');
-        const embed = new EmbedBuilder().setColor('#FFD700').setTitle('🛒 Cửa Hàng').setDescription(shopText);
-        return message.channel.send({ embeds: [embed] });
+        const currentShop = guildConfig.shopItems;
+        if (currentShop.length === 0) return message.reply('🛒 Cửa hàng hiện đang trống!');
+
+        let shopText = currentShop.map(i => `**ID ${i.id}**:${i.name} — Giá: \`${i.price} Xu\` (${i.type === 'boost' ? '⚡ X2 EXP' : '🏷️ Danh Hiệu'})`).join('\n');
+        
+        const shopEmbed = new EmbedBuilder()
+            .setColor('#FFD700')
+            .setTitle('🛒 Cửa Hàng Server')
+            .setDescription(shopText)
+            .setFooter({ text: 'Dùng lệnh .mua <ID> để mua vật phẩm' });
+        return message.channel.send({ embeds: [shopEmbed] });
     }
 
     if (command === 'mua') {
-        const item = SHOP_ITEMS.find(i => i.id === parseInt(args[0]));
-        if (!item) return message.reply('⚠️ Vật phẩm không tồn tại!');
-        if ((userData.coins || 0) < item.price) return message.reply('🚫 Không đủ Xu!');
+        const itemId = parseInt(args[0]);
+        const currentShop = guildConfig.shopItems;
+        const item = currentShop.find(i => i.id === itemId);
+
+        if (!item) return message.reply('⚠️ Vật phẩm không tồn tại! Dùng `.shop` để xem danh sách.');
+        if ((userData.coins || 0) < item.price) return message.reply('🚫 Bạn không đủ Xu để mua món này!');
 
         userData.coins -= item.price;
-        if (item.type === 'boost') userData.personalBoostUntil = Date.now() + 3600000;
-        else if (item.type === 'title') userData.title = item.title;
-
+        if (item.type === 'boost') {
+            userData.personalBoostUntil = Date.now() + 3600000;
+            message.reply(`✅ Đã mua thành công **${item.name}**! Bạn nhận được X2 EXP cá nhân trong 1 giờ.`);
+        } else if (item.type === 'title') {
+            userData.title = item.title;
+            message.reply(`✅ Đã mua thành công Danh hiệu: **${item.title}**!`);
+        }
         queueSave();
-        return message.reply(`✅ Đã mua thành công: **${item.name}**!`);
+        return;
     }
 
     if (command === 'nhiemvu') {
