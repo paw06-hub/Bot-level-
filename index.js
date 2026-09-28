@@ -26,7 +26,7 @@ const client = new Client({
 
 const TOKEN = process.env.TOKEN || 'THAY_TOKEN_BOT_CUA_BAN_VAO_DAY';
 const PREFIX = '.';
-const MY_DISCORD_ID = '1498554147304247296'; // ⚠️ THAY ID DISCORD THẬT CỦA BẠN VÀO ĐÂY
+const MY_DISCORD_ID = '1498554147304247296'; // Đã điền ID Discord của bạn vào đây
 const DATA_FILE = path.join(__dirname, 'level_data.json');
 const COOLDOWN_TIME = 60000;
 
@@ -74,7 +74,7 @@ function initGuild(guildId) {
                 isDoubleXp: false, 
                 bannedWords: [], 
                 statsChannels: {},
-                admins: [MY_DISCORD_ID], // Mặc định chỉ có bạn là Admin hệ thống bot
+                admins: [MY_DISCORD_ID], 
                 shopItems: [
                     { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
                     { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
@@ -84,7 +84,6 @@ function initGuild(guildId) {
             users: {}
         };
     }
-    // Đảm bảo server cũ khi tải lên có sẵn mảng admins và shopItems
     if (!memoryDb[guildId].config.admins) {
         memoryDb[guildId].config.admins = [MY_DISCORD_ID];
     }
@@ -103,8 +102,12 @@ function initUser(guildId, userId) {
         memoryDb[guildId].users[userId] = {
             xp: 0, level: 0, messages: 0, coins: 0, lastDaily: 0,
             title: 'Chưa có', personalBoostUntil: 0, warns: [],
-            quests: { msgCount: 0, claimed: false, date: '' }, dmNotification: false
+            quests: { msgCount: 0, claimed: false, date: '' }, dmNotification: false,
+            prestige: 0
         };
+    }
+    if (memoryDb[guildId].users[userId].prestige === undefined) {
+        memoryDb[guildId].users[userId].prestige = 0;
     }
 }
 
@@ -263,7 +266,6 @@ client.on('messageCreate', async (message) => {
         'shop-add', 'shop-remove', 'add-admin', 'remove-admin'
     ];
 
-    // Kiểm tra quyền Admin: Chỉ tài khoản trong danh sách admins mới được dùng lệnh Admin
     if (adminCommands.includes(command) && !isBotAdmin) {
         return message.reply('🚫 Quyền truy cập bị từ chối! Chỉ tài khoản chủ sở hữu mới được sử dụng.');
     }
@@ -539,6 +541,36 @@ client.on('messageCreate', async (message) => {
     }
 
     // --- LỆNH THÀNH VIÊN & MINIGAMES ---
+    if (command === 'chuyensinh') {
+        const MAX_LEVEL = 100; // Mốc cấp độ chuyển sinh
+        const currentLevel = userData.level || 0;
+
+        if (currentLevel < MAX_LEVEL) {
+            return message.reply(`🚫 Bạn chưa đủ điều kiện chuyển sinh! Cần đạt **Cấp ${MAX_LEVEL}** (Hiện tại: Cấp ${currentLevel}).`);
+        }
+
+        userData.prestige = (userData.prestige || 0) + 1;
+        userData.level = 0;
+        userData.xp = 0;
+        userData.coins = (userData.coins || 0) + 5000;
+        userData.title = `✨ Chuyển Sinh [${userData.prestige}]`;
+
+        queueSave();
+
+        const embed = new EmbedBuilder()
+            .setColor('#FFD700')
+            .setTitle('🌟 CHUYỂN SINH THÀNH CÔNG!')
+            .setDescription(`Chúc mừng ${message.author} đã vượt giới hạn và bước sang cảnh giới **Chuyển Sinh Lần ${userData.prestige}**!`)
+            .addFields(
+                { name: '🎖️ Cấp Độ', value: '`Cấp 0 (Đã reset)`', inline: true },
+                { name: '💰 Phần Thưởng', value: '`+5000 Xu`', inline: true },
+                { name: '🏷️ Danh Hiệu Mới', value: `\`✨ Chuyển Sinh [${userData.prestige}]\``, inline: true }
+            )
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [embed] });
+    }
+
     if (command === 'thongbao') {
         if (args[0]?.toLowerCase() === 'dm') {
             userData.dmNotification = !userData.dmNotification;
@@ -558,6 +590,7 @@ client.on('messageCreate', async (message) => {
                     name: '👤 Lệnh Cho Thành Viên', 
                     value: '`.profile` / `.stats` : Xem hồ sơ chi tiết.\n' +
                            '`.cap` / `.thongtin` : Xem cấp độ & EXP nhanh.\n' +
+                           '`.chuyensinh` : Chuyển sinh khi đạt Cấp 100.\n' +
                            '`.bxh` / `.topserver` : Xem bảng xếp hạng.\n' +
                            '`.thongbao dm` : Bật/Tắt nhận tin nhắn riêng khi lên cấp.' 
                 },
@@ -733,7 +766,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'profile' || command === 'stats') {
         const targetMember = message.mentions.members.first() || message.member;
         const targetUser = targetMember.user;
-        const uData = memoryDb[guildId]?.users[targetUser.id] || { xp: 0, level: 0, messages: 0, coins: 0, title: 'Chưa có', dmNotification: false };
+        const uData = memoryDb[guildId]?.users[targetUser.id] || { xp: 0, level: 0, messages: 0, coins: 0, title: 'Chưa có', dmNotification: false, prestige: 0 };
         const xpNeeded = getXpForNextLevel(uData.level);
 
         const embed = new EmbedBuilder()
@@ -744,6 +777,7 @@ client.on('messageCreate', async (message) => {
                 { name: '🏷️ Danh Hiệu', value: `\`${uData.title || 'Chưa có'}\``, inline: true },
                 { name: '🎖️ Cấp Độ', value: `\`Cấp ${uData.level}\``, inline: true },
                 { name: '⭐ Điểm EXP', value: `\`${uData.xp} / ${xpNeeded} EXP\``, inline: true },
+                { name: '🔄 Chuyển Sinh', value: `\`Lần ${uData.prestige || 0}\``, inline: true },
                 { name: '💰 Ví Xu', value: `\`${uData.coins || 0} Xu\``, inline: true },
                 { name: '💬 Tin Nhắn', value: `\`${uData.messages || 0} tin\``, inline: true },
                 { name: '📩 DM Lên Cấp', value: `\`${uData.dmNotification ? 'Bật' : 'Tắt'}\``, inline: true }
@@ -772,11 +806,11 @@ client.on('messageCreate', async (message) => {
         if (!users || !Object.keys(users).length) return message.channel.send('Chưa có dữ liệu!');
 
         const sorted = Object.entries(users)
-            .map(([id, data]) => ({ id, level: data.level, xp: data.xp }))
-            .sort((a, b) => b.level === a.level ? b.xp - a.xp : b.level - a.level)
+            .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
+            .sort((a, b) => b.prestige === a.prestige ? (b.level === a.level ? b.xp - a.xp : b.level - a.level) : b.prestige - a.prestige)
             .slice(0, 10);
 
-        let text = sorted.map((u, i) => `**#${i + 1}** <@${u.id}> — **Cấp ${u.level}** (${u.xp} EXP)`).join('\n');
+        let text = sorted.map((u, i) => `**#${i + 1}** <@${u.id}> — **${u.prestige > 0 ? `✨ CS [${u.prestige}] ` : ''}Cấp ${u.level}** (${u.xp} EXP)`).join('\n');
         const embed = new EmbedBuilder().setColor('#FFD700').setTitle(`🏆 Bảng Xếp Hạng - ${message.guild.name}`).setDescription(text);
         return message.channel.send({ embeds: [embed] });
     }
