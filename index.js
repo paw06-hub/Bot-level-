@@ -255,17 +255,29 @@ client.on('messageCreate', async (message) => {
         return message.reply('🚫 Quyền truy cập bị từ chối!');
     }
 
-    // --- LỆNH HƯỚNG DẪN / HELP ---
+    // --- LỆNH HƯỚNG DẪN / HELP (ĐÃ BỔ SUNG ĐẦY ĐỦ TẤT CẢ CÁC LỆNH) ---
     if (command === 'hlp' || command === 'help') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('📖 Bảng Trợ Giúp & Danh Sách Lệnh Bot')
-            .setDescription('Dưới đây là các lệnh bạn có thể sử dụng trong server:')
+            .setDescription('Dưới đây là toàn bộ các lệnh có sẵn trong bot:')
             .addFields(
-                { name: '📊 Cấp độ & Hồ sơ', value: '`.cap` hoặc `.profile` — Xem thông số cấp độ, rank, xu của bạn\n`.bxh` — Xem bảng xếp hạng cấp độ của server' },
-                { name: '🎁 Tương tác & Phần thưởng', value: '`.daily` — Điểm danh nhận Xu và EXP mỗi ngày\n`.moruong` — Mở rương báu nhận quà ngẫu nhiên (nhận được khi lên mốc cấp độ x5)' },
-                { name: '🛒 Cửa hàng & Kinh tế', value: '`.shop` — Xem danh sách vật phẩm trong cửa hàng\n`.mua <ID>` — Mua vật phẩm (như thẻ X2 EXP, danh hiệu)\n`.tien` (hoặc `.vi`) — Kiểm tra số dư ví cá nhân' },
-                { name: '🛠️ Lệnh Admin (Dành cho Quản trị viên)', value: '`.set-kenhexp #kenh <số>` — Chỉnh hệ số EXP cho kênh\n`.set-rolelevel <level> @Role` — Thưởng role tự động theo cấp độ\n`.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm vào shop' }
+                { 
+                    name: '📊 Cấp Độ & Hồ Sơ', 
+                    value: '• `.cap` (hoặc `.profile`, `.thongtin`) — Xem hồ sơ cấp độ, rank, EXP, danh hiệu và số dư của bạn\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên có cấp độ cao nhất trong server' 
+                },
+                { 
+                    name: '🎁 Phần Thưởng & Tương Tác', 
+                    value: '• `.daily` — Điểm danh nhận ngay **200 Xu** và **100 EXP** mỗi ngày\n• `.moruong` — Mở rương báu để nhận ngẫu nhiên Xu, EXP hoặc Danh hiệu đặc biệt (nhận được khi đạt mốc cấp độ x5)' 
+                },
+                { 
+                    name: '🛒 Cửa Hàng & Kinh Tế', 
+                    value: '• `.shop` — Xem danh sách vật phẩm đang mở bán\n• `.mua <ID>` — Mua vật phẩm trong cửa hàng (thẻ x2 EXP, danh hiệu,...)\n• `.tien` (hoặc `.vi`) — Kiểm tra số dư Xu và số rương báu hiện có' 
+                },
+                { 
+                    name: '🛠️ Lệnh Quản Trị (Admin)', 
+                    value: '• `.set-kenhexp #kenh <số>` — Thiết lập hệ số nhân EXP cho kênh cụ thể (1-10)\n• `.set-rolelevel <level> @Role` — Cài đặt tự động thưởng Role khi đạt cấp độ\n• `.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm mới vào shop' 
+                }
             )
             .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
             .setTimestamp();
