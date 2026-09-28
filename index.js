@@ -138,35 +138,10 @@ async function checkAndAwardRoles(member, guildId, newLevel, newPrestige) {
     }
 }
 
-async function updateServerStats(guild) {
-    initGuild(guild.id);
-    const statsConfig = memoryDb[guild.id].config.statsChannels;
-    if (!statsConfig || !statsConfig.total) return;
-
-    try {
-        await guild.members.fetch();
-        const totalMembers = guild.memberCount;
-        const botCount = guild.members.cache.filter(m => m.user.bot).size;
-        const onlineMembers = guild.members.cache.filter(m => !m.user.bot && m.presence && m.presence.status !== 'offline').size;
-
-        const totalCh = guild.channels.cache.get(statsConfig.total);
-        const onlineCh = guild.channels.cache.get(statsConfig.online);
-        const botCh = guild.channels.cache.get(statsConfig.bots);
-
-        if (totalCh) await totalCh.setName(`👥 Tổng Member: ${totalMembers}`).catch(() => {});
-        if (onlineCh) await onlineCh.setName(`🟢 Trực Tuyến: ${onlineMembers}`).catch(() => {});
-        if (botCh) await botCh.setName(`🤖 Số Bot: ${botCount}`).catch(() => {});
-    } catch (e) {}
-}
-
 client.once('ready', () => {
     memoryDb = loadData();
     console.log(`🤖 Bot đã sẵn sàng: ${client.user.tag}`);
-    setInterval(() => client.guilds.cache.forEach(g => updateServerStats(g)), 600000);
 });
-
-client.on('guildMemberAdd', member => updateServerStats(member.guild));
-client.on('guildMemberRemove', member => updateServerStats(member.guild));
 
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const userId = newState.id;
@@ -238,6 +213,7 @@ client.on('messageCreate', async (message) => {
                     .setDescription(`Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**!${newLevel % 5 === 0 ? '\n🎁 Bạn nhận được **1 Rương Báu** (`.moruong`)!' : ''}`)
                     .setTimestamp();
 
+                // Gửi vào kênh thông báo được cấu hình, nếu chưa cài thì gửi trực tiếp vào kênh hiện tại
                 const targetChannel = message.guild.channels.cache.get(guildConfig.logChannel) || message.channel;
                 targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
             }
@@ -253,7 +229,7 @@ client.on('messageCreate', async (message) => {
 
     const adminCommands = [
         'set-kenhexp', 'set-rolelevel', 'set-roleprestige', 
-        'shop-add', 'shop-remove', 'caidat-thongke',
+        'shop-add', 'shop-remove', 'set-kenhthongbao',
         'settitle', 'givexp', 'removexp', 'resetxp', 'givecoin', 'removecoin'
     ];
     if (adminCommands.includes(command) && !isBotAdmin) {
@@ -281,7 +257,7 @@ client.on('messageCreate', async (message) => {
                 },
                 { 
                     name: '🛠️ Lệnh Cấu Hình Hệ Thống (Admin)', 
-                    value: '• `.set-kenhexp #kenh <số>` — Chỉnh hệ số nhân EXP\n• `.set-rolelevel <level> @Role` — Thưởng Role theo cấp độ\n• `.set-roleprestige <prestige> @Role` — Thưởng Role theo chuyển sinh\n• `.caidat-thongke` — Kênh thống kê server\n• `.shop-add` / `.shop-remove` — Quản lý shop' 
+                    value: '• `.set-kenhexp #kenh <số>` — Chỉnh hệ số nhân EXP\n• `.set-kenhthongbao #kenh` — Cài đặt kênh thông báo lên cấp\n• `.set-rolelevel <level> @Role` — Thưởng Role theo cấp độ\n• `.set-roleprestige <prestige> @Role` — Thưởng Role theo chuyển sinh\n• `.shop-add` / `.shop-remove` — Quản lý shop' 
                 },
                 { 
                     name: '⚙️ Lệnh Quản Lý Người Dùng (Admin)', 
@@ -370,6 +346,15 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✅ Đã đặt hệ số EXP cho kênh ${channel} là **x${multiplier}**.`);
     }
 
+    // LỆNH MỚI: Cài đặt kênh thông báo lên cấp
+    if (command === 'set-kenhthongbao') {
+        const channel = message.mentions.channels.first();
+        if (!channel) return message.reply('⚠️ Cú pháp: `.set-kenhthongbao #kenh`');
+        guildConfig.logChannel = channel.id;
+        queueSave();
+        return message.reply(`✅ Đã đặt kênh ${channel} làm nơi gửi thông báo khi thành viên lên cấp!`);
+    }
+
     if (command === 'set-rolelevel') {
         const levelReq = parseInt(args[0]);
         const role = message.mentions.roles.first();
@@ -386,26 +371,6 @@ client.on('messageCreate', async (message) => {
         guildConfig.prestigeRewards[presReq] = role.id;
         queueSave();
         return message.reply(`✅ Đã thiết lập role thưởng cho cấp chuyển sinh ${presReq}.`);
-    }
-
-    if (command === 'caidat-thongke') {
-        try {
-            const category = await message.guild.channels.create({
-                name: '📊 THỐNG KÊ SERVER',
-                type: ChannelType.GuildCategory,
-                permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.Connect] }]
-            });
-            const totalCh = await message.guild.channels.create({ name: '👥 Tổng Member: 0', type: ChannelType.GuildVoice, parent: category.id });
-            const onlineCh = await message.guild.channels.create({ name: '🟢 Trực Tuyến: 0', type: ChannelType.GuildVoice, parent: category.id });
-            const botCh = await message.guild.channels.create({ name: '🤖 Số Bot: 0', type: ChannelType.GuildVoice, parent: category.id });
-
-            guildConfig.statsChannels = { total: totalCh.id, online: onlineCh.id, bots: botCh.id };
-            queueSave();
-            updateServerStats(message.guild);
-            return message.reply('✅ Đã thiết lập xong các kênh thống kê tự động!');
-        } catch (e) {
-            return message.reply('❌ Lỗi khi tạo kênh thống kê (kiểm tra quyền của bot).');
-        }
     }
 
     if (command === 'shop-add') {
@@ -546,11 +511,9 @@ client.on('messageCreate', async (message) => {
         const requiredXp = getXpForNextLevel(uData.level);
 
         try {
-            // Tạo Canvas kích thước 930x282
             const canvas = Canvas.createCanvas(930, 282);
             const ctx = canvas.getContext('2d');
 
-            // 1. Vẽ khung nền tối bo góc
             ctx.fillStyle = '#2b2d31';
             ctx.beginPath();
             ctx.roundRect(0, 0, 930, 282, 20);
@@ -559,7 +522,6 @@ client.on('messageCreate', async (message) => {
             ctx.lineWidth = 3;
             ctx.stroke();
 
-            // 2. Tải và vẽ Avatar bo tròn
             const avatarURL = targetUser.displayAvatarURL({ extension: 'png', size: 256 });
             const avatar = await Canvas.loadImage(avatarURL);
             
@@ -571,14 +533,12 @@ client.on('messageCreate', async (message) => {
             ctx.drawImage(avatar, 50, 66, 150, 150);
             ctx.restore();
 
-            // Viền trắng quanh avatar
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.arc(125, 141, 77, 0, Math.PI * 2, true);
             ctx.stroke();
 
-            // 3. Tên người dùng & Danh hiệu
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 36px sans-serif';
             ctx.fillText(targetUser.username, 230, 85);
@@ -587,7 +547,6 @@ client.on('messageCreate', async (message) => {
             ctx.font = '20px sans-serif';
             ctx.fillText(`Danh hiệu: ${uData.title || 'Chưa có'}`, 230, 120);
 
-            // 4. Rank & Level ở góc phải
             ctx.fillStyle = '#80848e';
             ctx.font = 'bold 26px sans-serif';
             ctx.textAlign = 'right';
@@ -596,18 +555,15 @@ client.on('messageCreate', async (message) => {
             ctx.fillStyle = '#5865F2';
             ctx.font = 'bold 36px sans-serif';
             ctx.fillText(`LVL ${uData.level}`, 870, 115);
-            ctx.textAlign = 'left'; // Reset lại alignment
+            ctx.textAlign = 'left';
 
-            // 5. Thanh Progress Bar XP
             const barX = 230, barY = 175, barW = 640, barH = 35;
             
-            // Nền thanh bar
             ctx.fillStyle = '#1e1f22';
             ctx.beginPath();
             ctx.roundRect(barX, barY, barW, barH, 10);
             ctx.fill();
 
-            // Phần tiến trình XP đạt được
             let progress = requiredXp > 0 ? (uData.xp / requiredXp) : 0;
             if (progress > 1) progress = 1;
             const progressW = Math.max(20, barW * progress);
@@ -617,12 +573,10 @@ client.on('messageCreate', async (message) => {
             ctx.roundRect(barX, barY, progressW, barH, 10);
             ctx.fill();
 
-            // Text thông số EXP trong thanh progress
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 18px sans-serif';
             ctx.fillText(`${uData.xp} / ${requiredXp} XP`, barX + 20, barY + 23);
 
-            // Gửi file ảnh qua Discord
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'rank_card.png' });
             return message.channel.send({ files: [attachment] });
 
