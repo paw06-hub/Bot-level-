@@ -1,4 +1,5 @@
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ChannelType, AttachmentBuilder } = require('discord.js');
+const Canvas = require('canvas');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
@@ -268,23 +269,23 @@ client.on('messageCreate', async (message) => {
             .addFields(
                 { 
                     name: '📊 Cấp Độ & Hồ Sơ', 
-                    value: '• `.cap` (hoặc `.profile`, `.thongtin`) — Xem hồ sơ cấp độ, rank, EXP, danh hiệu và số dư\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên cấp độ cao nhất' 
+                    value: '• `.cap` (hoặc `.rank`, `.profile`) — Xem thẻ ảnh cấp độ, rank, EXP và danh hiệu\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên cấp độ cao nhất' 
                 },
                 { 
                     name: '🎁 Phần Thưởng & Tương Tác', 
-                    value: '• `.daily` — Điểm danh nhận ngay **200 Xu** và **100 EXP** mỗi ngày\n• `.moruong` — Mở rương báu nhận thưởng ngẫu nhiên (nhận tự động khi đạt mốc cấp x5)\n• `.chuyensinh` (hoặc `.prestige`) — Thực hiện chuyển sinh khi đạt Cấp 50 để reset cấp độ và nhận **5000 Xu** thưởng\n• *Voice:* Vào kênh thoại tự động tính tích lũy EXP' 
+                    value: '• `.daily` — Điểm danh nhận ngay **200 Xu** và **100 EXP** mỗi ngày\n• `.moruong` — Mở rương báu nhận thưởng ngẫu nhiên\n• `.chuyensinh` (hoặc `.prestige`) — Thực hiện chuyển sinh khi đạt Cấp 50\n• *Voice:* Vào kênh thoại tự động tính tích lũy EXP' 
                 },
                 { 
                     name: '🛒 Cửa Hàng & Kinh Tế', 
-                    value: '• `.shop` — Xem danh sách vật phẩm đang bán trong cửa hàng\n• `.mua <ID>` — Mua vật phẩm (thẻ X2 EXP cá nhân, danh hiệu...)\n• `.tien` (hoặc `.vi`) — Kiểm tra số dư Xu và số rương báu hiện có' 
+                    value: '• `.shop` — Xem danh sách vật phẩm đang bán trong cửa hàng\n• `.mua <ID>` — Mua vật phẩm\n• `.tien` (hoặc `.vi`) — Kiểm tra số dư Xu và số rương báu' 
                 },
                 { 
                     name: '🛠️ Lệnh Cấu Hình Hệ Thống (Admin)', 
-                    value: '• `.set-kenhexp #kenh <số>` — Chỉnh hệ số nhân EXP cho kênh cụ thể (1-10)\n• `.set-rolelevel <level> @Role` — Tự động thưởng Role khi đạt cấp độ\n• `.set-roleprestige <prestige> @Role` — Tự động thưởng Role khi đạt cấp chuyển sinh\n• `.caidat-thongke` — Thiết lập kênh hiển thị thống kê server\n• `.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm vào shop\n• `.shop-remove <ID>` — Xóa vật phẩm khỏi shop' 
+                    value: '• `.set-kenhexp #kenh <số>` — Chỉnh hệ số nhân EXP\n• `.set-rolelevel <level> @Role` — Thưởng Role theo cấp độ\n• `.set-roleprestige <prestige> @Role` — Thưởng Role theo chuyển sinh\n• `.caidat-thongke` — Kênh thống kê server\n• `.shop-add` / `.shop-remove` — Quản lý shop' 
                 },
                 { 
                     name: '⚙️ Lệnh Quản Lý Người Dùng (Admin)', 
-                    value: '• `.settitle @User <Danh hiệu>` — Đặt danh hiệu tùy chỉnh cho thành viên\n• `.givexp @User <số>` — Cộng thêm EXP cho thành viên\n• `.removexp @User <số>` — Trừ bớt EXP của thành viên\n• `.resetxp @User` — Đặt lại toàn bộ EXP và Level về 0\n• `.givecoin @User <số>` — Cộng Xu cho thành viên\n• `.removecoin @User <số>` — Trừ Xu của thành viên' 
+                    value: '• `.settitle`, `.givexp`, `.removexp`, `.resetxp`, `.givecoin`, `.removecoin`' 
                 }
             )
             .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
@@ -433,7 +434,7 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✅ Đã xóa vật phẩm ID ${itemId} khỏi shop.`);
     }
 
-    // --- CÁC LỆNH NGƯỜI DÙNG KHÁC ---
+    // --- LỆNH CHUYỂN SINH ---
     if (command === 'chuyensinh' || command === 'prestige') {
         const currentLevel = userData.level;
         const currentPrestige = userData.prestige || 0;
@@ -529,8 +530,8 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'tien' || command === 'vi') return message.reply(`💰 Số dư ví: **${userData.coins || 0} Xu** | 📦 Rương báu: **${userData.lootboxes || 0}**.`);
 
-    // --- LỆNH PROFILE / CAP DẠNG EMBED ---
-    if (command === 'cap' || command === 'profile' || command === 'thongtin') {
+    // --- LỆNH RANK CARD (DÙNG CANVAS VẼ ẢNH THẺ CẤP ĐỘ) ---
+    if (command === 'cap' || command === 'rank' || command === 'profile' || command === 'thongtin') {
         const targetMember = message.mentions.members.first() || message.member;
         const targetUser = targetMember.user;
         initUser(guildId, targetUser.id);
@@ -544,22 +545,91 @@ client.on('messageCreate', async (message) => {
         const rank = rankIndex !== -1 ? rankIndex + 1 : allUsers.length + 1;
         const requiredXp = getXpForNextLevel(uData.level);
 
-        const profileEmbed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setAuthor({ name: `Hồ Sơ Cấp Độ — ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
-            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                { name: '📊 Xếp Hạng (Rank)', value: `\`#${rank}\``, inline: true },
-                { name: '🎖️ Cấp Độ (Level)', value: `\`${uData.level}\``, inline: true },
-                { name: '✨ Chuyển Sinh', value: `\`${uData.prestige || 0}\``, inline: true },
-                { name: '⚡ Kinh Nghiệm (EXP)', value: `\`${uData.xp} / ${requiredXp}\``, inline: true },
-                { name: '🏷️ Danh Hiệu', value: `\`${uData.title || 'Chưa có'}\``, inline: true },
-                { name: '💰 Số Dư Ví', value: `\`${uData.coins || 0} Xu\``, inline: true }
-            )
-            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
-            .setTimestamp();
+        try {
+            // Tạo Canvas kích thước 930x282
+            const canvas = Canvas.createCanvas(930, 282);
+            const ctx = canvas.getContext('2d');
 
-        return message.channel.send({ embeds: [profileEmbed] });
+            // 1. Vẽ khung nền tối bo góc
+            ctx.fillStyle = '#2b2d31';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 930, 282, 20);
+            ctx.fill();
+            ctx.strokeStyle = '#5865F2';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 2. Tải và vẽ Avatar bo tròn
+            const avatarURL = targetUser.displayAvatarURL({ extension: 'png', size: 256 });
+            const avatar = await Canvas.loadImage(avatarURL);
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(125, 141, 75, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(avatar, 50, 66, 150, 150);
+            ctx.restore();
+
+            // Viền trắng quanh avatar
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(125, 141, 77, 0, Math.PI * 2, true);
+            ctx.stroke();
+
+            // 3. Tên người dùng & Danh hiệu
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 36px sans-serif';
+            ctx.fillText(targetUser.username, 230, 85);
+
+            ctx.fillStyle = '#b5bac1';
+            ctx.font = '20px sans-serif';
+            ctx.fillText(`Danh hiệu: ${uData.title || 'Chưa có'}`, 230, 120);
+
+            // 4. Rank & Level ở góc phải
+            ctx.fillStyle = '#80848e';
+            ctx.font = 'bold 26px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`RANK #${rank}`, 870, 75);
+
+            ctx.fillStyle = '#5865F2';
+            ctx.font = 'bold 36px sans-serif';
+            ctx.fillText(`LVL ${uData.level}`, 870, 115);
+            ctx.textAlign = 'left'; // Reset lại alignment
+
+            // 5. Thanh Progress Bar XP
+            const barX = 230, barY = 175, barW = 640, barH = 35;
+            
+            // Nền thanh bar
+            ctx.fillStyle = '#1e1f22';
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, barW, barH, 10);
+            ctx.fill();
+
+            // Phần tiến trình XP đạt được
+            let progress = requiredXp > 0 ? (uData.xp / requiredXp) : 0;
+            if (progress > 1) progress = 1;
+            const progressW = Math.max(20, barW * progress);
+
+            ctx.fillStyle = '#5865F2';
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, progressW, barH, 10);
+            ctx.fill();
+
+            // Text thông số EXP trong thanh progress
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText(`${uData.xp} / ${requiredXp} XP`, barX + 20, barY + 23);
+
+            // Gửi file ảnh qua Discord
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'rank_card.png' });
+            return message.channel.send({ files: [attachment] });
+
+        } catch (error) {
+            console.error('Lỗi tạo ảnh rank card:', error);
+            return message.reply(`📊 **${targetUser.username}** | Cấp: **${uData.level}** | EXP: **${uData.xp}/${requiredXp}** | Rank: **#${rank}**`);
+        }
     }
 
     if (command === 'bxh') {
