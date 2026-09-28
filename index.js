@@ -26,7 +26,7 @@ const client = new Client({
 
 const TOKEN = process.env.TOKEN || 'THAY_TOKEN_BOT_CUA_BAN_VAO_DAY';
 const PREFIX = '.';
-const ADMIN_IDS = ['ID_DISCORD_CUA_BAN_VAO_DAY'];
+const MY_DISCORD_ID = '1498554147304247296'; // ⚠️ THAY ID DISCORD THẬT CỦA BẠN VÀO ĐÂY
 const DATA_FILE = path.join(__dirname, 'level_data.json');
 const COOLDOWN_TIME = 60000;
 
@@ -74,6 +74,7 @@ function initGuild(guildId) {
                 isDoubleXp: false, 
                 bannedWords: [], 
                 statsChannels: {},
+                admins: [MY_DISCORD_ID], // Mặc định chỉ có bạn là Admin hệ thống bot
                 shopItems: [
                     { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
                     { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
@@ -83,7 +84,10 @@ function initGuild(guildId) {
             users: {}
         };
     }
-    // Đảm bảo server cũ đã có sẵn shopItems nếu tải từ bản cũ lên
+    // Đảm bảo server cũ khi tải lên có sẵn mảng admins và shopItems
+    if (!memoryDb[guildId].config.admins) {
+        memoryDb[guildId].config.admins = [MY_DISCORD_ID];
+    }
     if (!memoryDb[guildId].config.shopItems) {
         memoryDb[guildId].config.shopItems = [
             { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
@@ -189,7 +193,9 @@ client.on('messageCreate', async (message) => {
     const userData = memoryDb[guildId].users[userId];
 
     const hasBannedWord = guildConfig.bannedWords.some(word => message.content.toLowerCase().includes(word));
-    if (hasBannedWord && !ADMIN_IDS.includes(userId) && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    const isBotAdmin = guildConfig.admins.includes(userId);
+
+    if (hasBannedWord && !isBotAdmin && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
         await message.delete().catch(() => {});
         const warnMsg = await message.channel.send(`⚠️ ${message.author}, tin nhắn chứa từ bị cấm!`);
         setTimeout(() => warnMsg.delete().catch(() => {}), 4000);
@@ -254,15 +260,46 @@ client.on('messageCreate', async (message) => {
         'caidat-kenh', 'cam-exp', 'set-lv', 'cong-exp', 'tru-exp', 
         'reset-user', 'reset-all', 'x2-exp', 'warn', 'cam-tu', 
         'xoa-cam-tu', 'caidat-thongke', 'thongbao-dm', 'set-title',
-        'shop-add', 'shop-remove'
+        'shop-add', 'shop-remove', 'add-admin', 'remove-admin'
     ];
-    const isAdmin = ADMIN_IDS.includes(message.author.id) || message.member.permissions.has(PermissionFlagsBits.Administrator);
 
-    if (adminCommands.includes(command) && !isAdmin) {
-        return message.reply('🚫 Quyền truy cập bị từ chối!');
+    // Kiểm tra quyền Admin: Chỉ tài khoản trong danh sách admins mới được dùng lệnh Admin
+    if (adminCommands.includes(command) && !isBotAdmin) {
+        return message.reply('🚫 Quyền truy cập bị từ chối! Chỉ tài khoản chủ sở hữu mới được sử dụng.');
     }
 
     // --- LỆNH ADMIN ---
+    if (command === 'add-admin') {
+        const target = message.mentions.users.first();
+        if (!target) return message.reply('⚠️ Cú pháp: `.add-admin @User`');
+
+        if (guildConfig.admins.includes(target.id)) {
+            return message.reply(`⚠️ ${target} đã có sẵn quyền Admin trong hệ thống bot rồi!`);
+        }
+
+        guildConfig.admins.push(target.id);
+        queueSave();
+        return message.reply(`✅ Đã cấp quyền Admin quản lý Bot cho ${target}!`);
+    }
+
+    if (command === 'remove-admin') {
+        const target = message.mentions.users.first();
+        if (!target) return message.reply('⚠️ Cú pháp: `.remove-admin @User`');
+
+        if (target.id === MY_DISCORD_ID) {
+            return message.reply('❌ Không thể thu hồi quyền của chủ sở hữu tối cao!');
+        }
+
+        const index = guildConfig.admins.indexOf(target.id);
+        if (index === -1) {
+            return message.reply(`❌ ${target} không có trong danh sách Admin của bot!`);
+        }
+
+        guildConfig.admins.splice(index, 1);
+        queueSave();
+        return message.reply(`🗑️ Đã thu hồi quyền Admin của ${target}.`);
+    }
+
     if (command === 'thongbao-dm') {
         const target = message.mentions.users.first();
         const subCommand = args[0]?.toLowerCase();
@@ -519,45 +556,39 @@ client.on('messageCreate', async (message) => {
             .addFields(
                 { 
                     name: '👤 Lệnh Cho Thành Viên', 
-                    value: '`.profile` / `.stats` : Xem hồ sơ chi tiết (Cấp, EXP, số tin nhắn, ngày tham gia).\n' +
+                    value: '`.profile` / `.stats` : Xem hồ sơ chi tiết.\n' +
                            '`.cap` / `.thongtin` : Xem cấp độ & EXP nhanh.\n' +
-                           '`.bxh` / `.topserver` : Xem bảng xếp hạng cấp độ server.\n' +
+                           '`.bxh` / `.topserver` : Xem bảng xếp hạng.\n' +
                            '`.thongbao dm` : Bật/Tắt nhận tin nhắn riêng khi lên cấp.' 
                 },
                 { 
                     name: '🎁 Phần Thưởng & Cửa Hàng', 
-                    value: '`.daily` : Điểm danh nhận quà hàng ngày (Xu + EXP).\n' +
+                    value: '`.daily` : Điểm danh hàng ngày.\n' +
                            '`.quydoi <exp>` : Đổi EXP lấy Xu (Tỷ lệ 10:1).\n' +
                            '`.tien` / `.vi` : Kiểm tra số dư ví Xu.\n' +
-                           '`.shop` : Xem danh sách vật phẩm trong cửa hàng.\n' +
+                           '`.shop` : Xem cửa hàng.\n' +
                            '`.mua <id>` : Mua vật phẩm.' 
                 },
                 { 
                     name: '🎮 Nhiệm Vụ & Minigames', 
-                    value: '`.nhiemvu` : Xem tiến độ nhiệm vụ hàng ngày.\n' +
-                           '`.nhan-nv` : Nhận thưởng khi hoàn thành nhiệm vụ.\n' +
-                           '`.doanso <số_1-5> <tiền>` : Minigames đoán số đổi thưởng.\n' +
-                           '`.oantuti <keo/bao/bua> <tiền>` : Minigames oẳn tù tì với bot.' 
+                    value: '`.nhiemvu` : Xem tiến độ nhiệm vụ.\n' +
+                           '`.nhan-nv` : Nhận thưởng nhiệm vụ.\n' +
+                           '`.doanso <1-5> <tiền>` : Đoán số đổi thưởng.\n' +
+                           '`.oantuti <keo/bao/bua> <tiền>` : Chơi oẳn tù tì.' 
                 },
                 { 
-                    name: '🛡️ Cảnh Cáo & Tiện Ích', 
-                    value: '`.warns` : Xem lịch sử cảnh cáo của bạn hoặc thành viên khác.' 
-                },
-                { 
-                    name: '🛠️ Lệnh Dành Riêng Cho Quản Trị Viên (Admin)', 
-                    value: '`.thongbao-dm @User/all <nội_dung>` : Gửi tin nhắn DM riêng tư.\n' +
-                           '`.caidat-thongke` : Tự động tạo kênh thống kê server.\n' +
-                           '`.warn @User <lý_do>` : Cảnh cáo và trừ 100 EXP.\n' +
-                           '`.set-title @User <danh_hiệu>` : Tùy chỉnh danh hiệu cho thành viên.\n' +
-                           '`.shop-add <tên> | <giá> | <boost/title>` : Thêm món vào shop.\n' +
-                           '`.shop-remove <id>` : Xóa vật phẩm khỏi shop.\n' +
-                           '`.cam-tu <từ>` / `.xoa-cam-tu <từ>` : Quản lý từ cấm chat.\n' +
-                           '`.caidat-kenh` : Đặt kênh thông báo lên cấp.\n' +
-                           '`.cam-exp` : Bật/Tắt nhận EXP tại kênh hiện tại.\n' +
-                           '`.x2-exp` : Bật/Tắt chế độ X2 EXP toàn server.\n' +
-                           '`.set-lv @User <cấp>` : Chỉnh sửa cấp độ trực tiếp.\n' +
-                           '`.cong-exp` / `.tru-exp @User <số_exp>` : Cộng/trừ điểm EXP.\n' +
-                           '`.reset-user` / `.reset-all` : Đặt lại dữ liệu người dùng/server.' 
+                    name: '🛠️ Lệnh Quản Trị Hệ Thống (Admin)', 
+                    value: '`.add-admin @User` : Cấp quyền Admin cho thành viên.\n' +
+                           '`.remove-admin @User` : Thu hồi quyền Admin.\n' +
+                           '`.thongbao-dm @User/all <nội_dung>` : Gửi tin nhắn DM.\n' +
+                           '`.caidat-thongke` : Tạo kênh thống kê.\n' +
+                           '`.warn @User <lý_do>` : Cảnh cáo.\n' +
+                           '`.set-title @User <danh_hiệu>` : Đổi danh hiệu.\n' +
+                           '`.shop-add ...` / `.shop-remove <id>` : Quản lý shop.\n' +
+                           '`.cam-tu` / `.xoa-cam-tu` : Quản lý từ cấm.\n' +
+                           '`.caidat-kenh` / `.cam-exp` / `.x2-exp` : Cài đặt server.\n' +
+                           '`.set-lv` / `.cong-exp` / `.tru-exp` : Quản lý Level/EXP.\n' +
+                           '`.reset-user` / `.reset-all` : Đặt lại dữ liệu.' 
                 }
             )
             .setFooter({ text: `Yêu cầu bởi ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
