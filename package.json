@@ -1,16 +1,14 @@
 {
   "name": "bot-jangjii",
   "version": "1.0.0",
-  "description": "Bot Discord JangJii - Leveling, Economy & Management",
+  "description": "Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.14.1",
-    "express": "^4.18.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "canvas": "^2.11.2",
+    "discord.js": "^14.14.0",
+    "express": "^4.19.2"
   }
 }
