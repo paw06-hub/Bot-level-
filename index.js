@@ -250,33 +250,41 @@ client.on('messageCreate', async (message) => {
     const command = args.shift().toLowerCase();
     const isBotAdmin = guildConfig.admins.includes(userId);
 
-    const adminCommands = ['set-kenhexp', 'set-rolelevel', 'set-roleprestige', 'shop-add', 'shop-remove', 'caidat-thongke'];
+    const adminCommands = [
+        'set-kenhexp', 'set-rolelevel', 'set-roleprestige', 
+        'shop-add', 'shop-remove', 'caidat-thongke',
+        'settitle', 'givexp', 'removexp', 'resetxp', 'givecoin', 'removecoin'
+    ];
     if (adminCommands.includes(command) && !isBotAdmin) {
-        return message.reply('🚫 Quyền truy cập bị từ chối!');
+        return message.reply('🚫 Quyền truy cập bị từ chối! Bạn không phải là Admin của bot.');
     }
 
-    // --- LỆNH HƯỚNG DẪN / HELP (ĐÃ BỔ SUNG ĐẦY ĐỦ TẤT CẢ CÁC LỆNH) ---
+    // --- LỆNH HƯỚNG DẪN / HELP ---
     if (command === 'hlp' || command === 'help') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('📖 Bảng Trợ Giúp & Danh Sách Lệnh Bot')
-            .setDescription('Dưới đây là toàn bộ các lệnh có sẵn trong bot:')
+            .setDescription('Dưới đây là toàn bộ danh sách lệnh thành viên và lệnh quản trị hệ thống:')
             .addFields(
                 { 
                     name: '📊 Cấp Độ & Hồ Sơ', 
-                    value: '• `.cap` (hoặc `.profile`, `.thongtin`) — Xem hồ sơ cấp độ, rank, EXP, danh hiệu và số dư của bạn\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên có cấp độ cao nhất trong server' 
+                    value: '• `.cap` (hoặc `.profile`, `.thongtin`) — Xem hồ sơ cấp độ, rank, EXP, danh hiệu và số dư\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên cấp độ cao nhất' 
                 },
                 { 
                     name: '🎁 Phần Thưởng & Tương Tác', 
-                    value: '• `.daily` — Điểm danh nhận ngay **200 Xu** và **100 EXP** mỗi ngày\n• `.moruong` — Mở rương báu để nhận ngẫu nhiên Xu, EXP hoặc Danh hiệu đặc biệt (nhận được khi đạt mốc cấp độ x5)' 
+                    value: '• `.daily` — Điểm danh nhận ngay **200 Xu** và **100 EXP** mỗi ngày\n• `.moruong` — Mở rương báu nhận thưởng ngẫu nhiên (nhận tự động khi đạt mốc cấp x5)\n• `.chuyensinh` (hoặc `.prestige`) — Thực hiện chuyển sinh khi đạt Cấp 50 để reset cấp độ và nhận **5000 Xu** thưởng\n• *Voice:* Vào kênh thoại tự động tính tích lũy EXP' 
                 },
                 { 
                     name: '🛒 Cửa Hàng & Kinh Tế', 
-                    value: '• `.shop` — Xem danh sách vật phẩm đang mở bán\n• `.mua <ID>` — Mua vật phẩm trong cửa hàng (thẻ x2 EXP, danh hiệu,...)\n• `.tien` (hoặc `.vi`) — Kiểm tra số dư Xu và số rương báu hiện có' 
+                    value: '• `.shop` — Xem danh sách vật phẩm đang bán trong cửa hàng\n• `.mua <ID>` — Mua vật phẩm (thẻ X2 EXP cá nhân, danh hiệu...)\n• `.tien` (hoặc `.vi`) — Kiểm tra số dư Xu và số rương báu hiện có' 
                 },
                 { 
-                    name: '🛠️ Lệnh Quản Trị (Admin)', 
-                    value: '• `.set-kenhexp #kenh <số>` — Thiết lập hệ số nhân EXP cho kênh cụ thể (1-10)\n• `.set-rolelevel <level> @Role` — Cài đặt tự động thưởng Role khi đạt cấp độ\n• `.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm mới vào shop' 
+                    name: '🛠️ Lệnh Cấu Hình Hệ Thống (Admin)', 
+                    value: '• `.set-kenhexp #kenh <số>` — Chỉnh hệ số nhân EXP cho kênh cụ thể (1-10)\n• `.set-rolelevel <level> @Role` — Tự động thưởng Role khi đạt cấp độ\n• `.set-roleprestige <prestige> @Role` — Tự động thưởng Role khi đạt cấp chuyển sinh\n• `.caidat-thongke` — Thiết lập kênh hiển thị thống kê server\n• `.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm vào shop\n• `.shop-remove <ID>` — Xóa vật phẩm khỏi shop' 
+                },
+                { 
+                    name: '⚙️ Lệnh Quản Lý Người Dùng (Admin)', 
+                    value: '• `.settitle @User <Danh hiệu>` — Đặt danh hiệu tùy chỉnh cho thành viên\n• `.givexp @User <số>` — Cộng thêm EXP cho thành viên\n• `.removexp @User <số>` — Trừ bớt EXP của thành viên\n• `.resetxp @User` — Đặt lại toàn bộ EXP và Level về 0\n• `.givecoin @User <số>` — Cộng Xu cho thành viên\n• `.removecoin @User <số>` — Trừ Xu của thành viên' 
                 }
             )
             .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
@@ -285,6 +293,71 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [helpEmbed] });
     }
 
+    // --- CÁC LỆNH ADMIN QUẢN LÝ USER ---
+    if (command === 'settitle') {
+        const targetMember = message.mentions.members.first();
+        const newTitle = args.slice(1).join(' ');
+        if (!targetMember || !newTitle) return message.reply('⚠️ Cú pháp: `.settitle @User <Danh hiệu mới>`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].title = newTitle;
+        if (!memoryDb[guildId].users[targetMember.id].unlockedTitles.includes(newTitle)) {
+            memoryDb[guildId].users[targetMember.id].unlockedTitles.push(newTitle);
+        }
+        queueSave();
+        return message.reply(`✅ Đã đặt danh hiệu mới \`${newTitle}\` cho ${targetMember}.`);
+    }
+
+    if (command === 'givexp') {
+        const targetMember = message.mentions.members.first();
+        const amount = parseInt(args[1]);
+        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.givexp @User <số_exp>`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].xp += amount;
+        queueSave();
+        return message.reply(`✅ Đã cộng thêm **${amount} EXP** cho ${targetMember}.`);
+    }
+
+    if (command === 'removexp') {
+        const targetMember = message.mentions.members.first();
+        const amount = parseInt(args[1]);
+        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.removexp @User <số_exp>`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].xp = Math.max(0, memoryDb[guildId].users[targetMember.id].xp - amount);
+        queueSave();
+        return message.reply(`✅ Đã trừ **${amount} EXP** của ${targetMember}.`);
+    }
+
+    if (command === 'resetxp') {
+        const targetMember = message.mentions.members.first();
+        if (!targetMember) return message.reply('⚠️ Cú pháp: `.resetxp @User`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].xp = 0;
+        memoryDb[guildId].users[targetMember.id].level = 0;
+        queueSave();
+        return message.reply(`🔄 Đã reset toàn bộ EXP và Level của ${targetMember} về 0.`);
+    }
+
+    if (command === 'givecoin') {
+        const targetMember = message.mentions.members.first();
+        const amount = parseInt(args[1]);
+        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.givecoin @User <số_xu>`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].coins = (memoryDb[guildId].users[targetMember.id].coins || 0) + amount;
+        queueSave();
+        return message.reply(`✅ Đã cộng **${amount} Xu** cho ${targetMember}.`);
+    }
+
+    if (command === 'removecoin') {
+        const targetMember = message.mentions.members.first();
+        const amount = parseInt(args[1]);
+        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.removecoin @User <số_xu>`');
+        initUser(guildId, targetMember.id);
+        memoryDb[guildId].users[targetMember.id].coins = Math.max(0, (memoryDb[guildId].users[targetMember.id].coins || 0) - amount);
+        queueSave();
+        return message.reply(`✅ Đã trừ **${amount} Xu** của ${targetMember}.`);
+    }
+
+    // --- CÁC LỆNH ADMIN CẤU HÌNH ---
     if (command === 'set-kenhexp') {
         const channel = message.mentions.channels.first() || message.channel;
         const multiplier = parseInt(args[0] || args[1]);
@@ -305,6 +378,35 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✅ Đã thiết lập role thưởng cho Cấp ${levelReq}.`);
     }
 
+    if (command === 'set-roleprestige') {
+        const presReq = parseInt(args[0]);
+        const role = message.mentions.roles.first();
+        if (isNaN(presReq) || !role) return message.reply('⚠️ Cú pháp: `.set-roleprestige <chuyển_sinh> @Role`');
+        guildConfig.prestigeRewards[presReq] = role.id;
+        queueSave();
+        return message.reply(`✅ Đã thiết lập role thưởng cho cấp chuyển sinh ${presReq}.`);
+    }
+
+    if (command === 'caidat-thongke') {
+        try {
+            const category = await message.guild.channels.create({
+                name: '📊 THỐNG KÊ SERVER',
+                type: ChannelType.GuildCategory,
+                permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.Connect] }]
+            });
+            const totalCh = await message.guild.channels.create({ name: '👥 Tổng Member: 0', type: ChannelType.GuildVoice, parent: category.id });
+            const onlineCh = await message.guild.channels.create({ name: '🟢 Trực Tuyến: 0', type: ChannelType.GuildVoice, parent: category.id });
+            const botCh = await message.guild.channels.create({ name: '🤖 Số Bot: 0', type: ChannelType.GuildVoice, parent: category.id });
+
+            guildConfig.statsChannels = { total: totalCh.id, online: onlineCh.id, bots: botCh.id };
+            queueSave();
+            updateServerStats(message.guild);
+            return message.reply('✅ Đã thiết lập xong các kênh thống kê tự động!');
+        } catch (e) {
+            return message.reply('❌ Lỗi khi tạo kênh thống kê (kiểm tra quyền của bot).');
+        }
+    }
+
     if (command === 'shop-add') {
         const content = args.join(' ');
         const parts = content.split('|').map(p => p.trim());
@@ -319,6 +421,47 @@ client.on('messageCreate', async (message) => {
         currentShop.push({ id: newId, name, price, type, title: type === 'title' ? subValue : undefined });
         queueSave();
         return message.reply(`✅ Đã thêm vật phẩm ID ${newId} vào shop!`);
+    }
+
+    if (command === 'shop-remove') {
+        const itemId = parseInt(args[0]);
+        if (isNaN(itemId)) return message.reply('⚠️ Cú pháp: `.shop-remove <ID>`');
+        const index = guildConfig.shopItems.findIndex(i => i.id === itemId);
+        if (index === -1) return message.reply('⚠️ Không tìm thấy vật phẩm với ID này!');
+        guildConfig.shopItems.splice(index, 1);
+        queueSave();
+        return message.reply(`✅ Đã xóa vật phẩm ID ${itemId} khỏi shop.`);
+    }
+
+    // --- CÁC LỆNH NGƯỜI DÙNG KHÁC ---
+    if (command === 'chuyensinh' || command === 'prestige') {
+        const currentLevel = userData.level;
+        const currentPrestige = userData.prestige || 0;
+        const REQUIRED_LEVEL = 50; 
+
+        if (currentLevel < REQUIRED_LEVEL) {
+            return message.reply(`🚫 Bạn chưa đủ điều kiện chuyển sinh! Bạn cần đạt **Cấp ${REQUIRED_LEVEL}** (Hiện tại: Cấp ${currentLevel}).`);
+        }
+
+        userData.level = 0;
+        userData.xp = 0;
+        userData.prestige = currentPrestige + 1;
+        userData.coins = (userData.coins || 0) + 5000;
+
+        if (guildConfig.prestigeRewards) {
+            await checkAndAwardRoles(message.member, guildId, userData.level, userData.prestige);
+        }
+
+        queueSave();
+
+        const prestigeEmbed = new EmbedBuilder()
+            .setColor('#FF4500')
+            .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
+            .setTitle('🌟 CHUYỂN SINH THÀNH CÔNG!')
+            .setDescription(`Chúc mừng ${message.author} đã **Chuyển Sinh bậc ${userData.prestige}** thành công!\n\n🔄 Cấp độ và EXP đã được làm mới về 0.\n🎁 Phần thưởng: **+5000 Xu** và mở khóa mốc phần thưởng mới!`)
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [prestigeEmbed] });
     }
 
     if (command === 'moruong') {
@@ -351,7 +494,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'shop') {
         const currentShop = guildConfig.shopItems;
         let shopText = currentShop.map(i => `**ID ${i.id}**:${i.name} — Giá: \`${i.price} Xu\``).join('\n');
-        const embed = new EmbedBuilder().setColor('#FFD700').setTitle('🛒 Cửa Hàng Server').setDescription(shopText).setFooter({ text: 'Dùng .mua <ID> để mua' });
+        const embed = new EmbedBuilder().setColor('#FFD700').setTitle('🛒 Cửa Hàng Server').setDescription(shopText || 'Trống').setFooter({ text: 'Dùng .mua <ID> để mua' });
         return message.channel.send({ embeds: [embed] });
     }
 
