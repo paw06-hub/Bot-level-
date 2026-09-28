@@ -255,6 +255,24 @@ client.on('messageCreate', async (message) => {
         return message.reply('🚫 Quyền truy cập bị từ chối!');
     }
 
+    // --- LỆNH HƯỚNG DẪN / HELP ---
+    if (command === 'hlp' || command === 'help') {
+        const helpEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('📖 Bảng Trợ Giúp & Danh Sách Lệnh Bot')
+            .setDescription('Dưới đây là các lệnh bạn có thể sử dụng trong server:')
+            .addFields(
+                { name: '📊 Cấp độ & Hồ sơ', value: '`.cap` hoặc `.profile` — Xem thông số cấp độ, rank, xu của bạn\n`.bxh` — Xem bảng xếp hạng cấp độ của server' },
+                { name: '🎁 Tương tác & Phần thưởng', value: '`.daily` — Điểm danh nhận Xu và EXP mỗi ngày\n`.moruong` — Mở rương báu nhận quà ngẫu nhiên (nhận được khi lên mốc cấp độ x5)' },
+                { name: '🛒 Cửa hàng & Kinh tế', value: '`.shop` — Xem danh sách vật phẩm trong cửa hàng\n`.mua <ID>` — Mua vật phẩm (như thẻ X2 EXP, danh hiệu)\n`.tien` (hoặc `.vi`) — Kiểm tra số dư ví cá nhân' },
+                { name: '🛠️ Lệnh Admin (Dành cho Quản trị viên)', value: '`.set-kenhexp #kenh <số>` — Chỉnh hệ số EXP cho kênh\n`.set-rolelevel <level> @Role` — Thưởng role tự động theo cấp độ\n`.shop-add Tên | Giá | boost/title | [Title]` — Thêm vật phẩm vào shop' }
+            )
+            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [helpEmbed] });
+    }
+
     if (command === 'set-kenhexp') {
         const channel = message.mentions.channels.first() || message.channel;
         const multiplier = parseInt(args[0] || args[1]);
@@ -346,7 +364,7 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'daily') {
         const now = Date.now();
-        if (now - userData.lastDaily < 86400000) return message.reply('⏳ Đã điểm danh rồi!');
+        if (now - userData.lastDaily < 86400000) return message.reply('⏳ Điểm danh rồi! Quay lại vào ngày mai nhé.');
         userData.lastDaily = now;
         userData.coins = (userData.coins || 0) + 200;
         userData.xp += 100;
@@ -356,7 +374,7 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'tien' || command === 'vi') return message.reply(`💰 Số dư ví: **${userData.coins || 0} Xu** | 📦 Rương báu: **${userData.lootboxes || 0}**.`);
 
-    // --- LỆNH PROFILE / CAP DẠNG EMBED (KHÔNG CẦN CANVAS) ---
+    // --- LỆNH PROFILE / CAP DẠNG EMBED ---
     if (command === 'cap' || command === 'profile' || command === 'thongtin') {
         const targetMember = message.mentions.members.first() || message.member;
         const targetUser = targetMember.user;
