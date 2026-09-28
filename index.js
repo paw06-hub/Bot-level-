@@ -1,9 +1,8 @@
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ChannelType, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const express = require('express');
-const { createCanvas, loadImage } = require('canvas');
 
 // --- 1. WEB SERVER CHO RENDER ---
 const app = express();
@@ -78,13 +77,10 @@ function initGuild(guildId) {
                 admins: [MY_DISCORD_ID], 
                 roleRewards: {}, 
                 prestigeRewards: {}, 
-                channelMultipliers: {}, // Hệ số EXP theo kênh: { "CHANNEL_ID": 2 }
+                channelMultipliers: {},
                 shopItems: [
                     { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
-                    { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
-                    { id: 3, name: 'Theme Card: 🌆 Cyberpunk', price: 1500, type: 'theme', themeKey: 'cyberpunk' },
-                    { id: 4, name: 'Theme Card: 🌸 Anime', price: 1500, type: 'theme', themeKey: 'anime' },
-                    { id: 5, name: 'Theme Card: 🌑 Hắc Ám', price: 1500, type: 'theme', themeKey: 'dark' }
+                    { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' }
                 ]
             },
             users: {}
@@ -94,15 +90,6 @@ function initGuild(guildId) {
     if (!memoryDb[guildId].config.roleRewards) memoryDb[guildId].config.roleRewards = {};
     if (!memoryDb[guildId].config.prestigeRewards) memoryDb[guildId].config.prestigeRewards = {};
     if (!memoryDb[guildId].config.channelMultipliers) memoryDb[guildId].config.channelMultipliers = {};
-    if (!memoryDb[guildId].config.shopItems) {
-        memoryDb[guildId].config.shopItems = [
-            { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
-            { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' },
-            { id: 3, name: 'Theme Card: 🌆 Cyberpunk', price: 1500, type: 'theme', themeKey: 'cyberpunk' },
-            { id: 4, name: 'Theme Card: 🌸 Anime', price: 1500, type: 'theme', themeKey: 'anime' },
-            { id: 5, name: 'Theme Card: 🌑 Hắc Ám', price: 1500, type: 'theme', themeKey: 'dark' }
-        ];
-    }
 }
 
 function initUser(guildId, userId) {
@@ -112,15 +99,13 @@ function initUser(guildId, userId) {
             xp: 0, level: 0, messages: 0, coins: 0, lastDaily: 0,
             title: 'Chưa có', unlockedTitles: ['Chưa có'], personalBoostUntil: 0, warns: [],
             quests: { msgCount: 0, claimed: false, date: '' }, dmNotification: false,
-            prestige: 0, lootboxes: 0, unlockedThemes: ['default'], currentTheme: 'default'
+            prestige: 0, lootboxes: 0
         };
     }
     let u = memoryDb[guildId].users[userId];
     if (u.prestige === undefined) u.prestige = 0;
     if (u.lootboxes === undefined) u.lootboxes = 0;
     if (!u.unlockedTitles) u.unlockedTitles = ['Chưa có', u.title || 'Chưa có'];
-    if (!u.unlockedThemes) u.unlockedThemes = ['default'];
-    if (!u.currentTheme) u.currentTheme = 'default';
 }
 
 async function checkAndAwardRoles(member, guildId, newLevel, newPrestige) {
@@ -150,117 +135,6 @@ async function checkAndAwardRoles(member, guildId, newLevel, newPrestige) {
             }
         }
     }
-}
-
-// --- HÀM VẼ RANK CARD TÙY CHỈNH THEME ---
-async function generateRankCard(user, member, userData, rank) {
-    const canvas = createCanvas(934, 282);
-    const ctx = canvas.getContext('2d');
-
-    const theme = userData.currentTheme || 'default';
-    let bgColor = '#1e1f22';
-    let cardBg = '#2b2d31';
-    let primaryColor = '#5865F2';
-    let accentColor = '#eb459e';
-
-    if (theme === 'cyberpunk') {
-        bgColor = '#090a0f';
-        cardBg = '#141724';
-        primaryColor = '#00ffcc';
-        accentColor = '#ff007f';
-    } else if (theme === 'anime') {
-        bgColor = '#221929';
-        cardBg = '#362842';
-        primaryColor = '#ff758c';
-        accentColor = '#ff7eb3';
-    } else if (theme === 'dark') {
-        bgColor = '#0d0d0d';
-        cardBg = '#1a1a1a';
-        primaryColor = '#a855f7';
-        accentColor = '#6366f1';
-    }
-
-    // Nền tổng thể
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Khung thẻ
-    ctx.fillStyle = cardBg;
-    ctx.roundRect ? ctx.roundRect(20, 20, 894, 242, 16) : ctx.fillRect(20, 20, 894, 242);
-    ctx.fill();
-
-    // Avatar tròn
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(115, 141, 75, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    try {
-        const avatarURL = user.displayAvatarURL({ extension: 'png', size: 256 });
-        const avatar = await loadImage(avatarURL);
-        ctx.drawImage(avatar, 40, 66, 150, 150);
-    } catch {
-        ctx.fillStyle = primaryColor;
-        ctx.fillRect(40, 66, 150, 150);
-    }
-    ctx.restore();
-
-    // Viền avatar
-    ctx.strokeStyle = primaryColor;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(115, 141, 75, 0, Math.PI * 2, true);
-    ctx.stroke();
-
-    // Tên & Danh hiệu
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(user.username, 220, 95);
-
-    ctx.fillStyle = '#b5bac1';
-    ctx.font = '20px sans-serif';
-    ctx.fillText(`Danh hiệu: ${userData.title || 'Chưa có'}`, 220, 125);
-
-    // Rank & Level
-    ctx.fillStyle = primaryColor;
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(`LVL ${userData.level}`, 890, 75);
-
-    ctx.fillStyle = '#00b0f4';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`#${rank}`, 810, 75);
-
-    if ((userData.prestige || 0) > 0) {
-        ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.fillText(`✨ Chuyển Sinh [${userData.prestige}]`, 890, 105);
-    }
-
-    // Thanh Progress Bar EXP
-    const currentXp = userData.xp;
-    const requiredXp = getXpForNextLevel(userData.level);
-    const progressWidth = Math.min(Math.max((currentXp / requiredXp) * 650, 20), 650);
-
-    ctx.fillStyle = '#313338';
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(220, 175, 650, 30, 15) : ctx.fillRect(220, 175, 650, 30);
-    ctx.fill();
-
-    const gradient = ctx.createLinearGradient(220, 0, 870, 0);
-    gradient.addColorStop(0, primaryColor);
-    gradient.addColorStop(1, accentColor);
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(220, 175, progressWidth, 30, 15) : ctx.fillRect(220, 175, progressWidth, 30);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${currentXp} /${requiredXp} EXP`, 545, 195);
-
-    return new AttachmentBuilder(canvas.toBuffer(), { name: 'rank-card.png' });
 }
 
 async function updateServerStats(guild) {
@@ -338,7 +212,6 @@ client.on('messageCreate', async (message) => {
         const now = Date.now();
 
         if (now - lastMsgTime > COOLDOWN_TIME) {
-            // Tính hệ số EXP theo kênh (Mặc định x1, nếu kênh đó cài x2/x3 thì nhân lên)
             const channelMultiplier = guildConfig.channelMultipliers[message.channel.id] || 1;
             let xpGained = (guildConfig.isDoubleXp ? 30 : 15) * channelMultiplier;
             if (now < userData.personalBoostUntil) xpGained *= 2;
@@ -351,7 +224,6 @@ client.on('messageCreate', async (message) => {
                 userData.level += 1;
                 const newLevel = userData.level;
 
-                // Thưởng 1 Rương Báu mỗi khi lên cấp mốc chia hết cho 5 hoặc cấp độ cao
                 if (newLevel % 5 === 0) {
                     userData.lootboxes = (userData.lootboxes || 0) + 1;
                 }
@@ -362,7 +234,7 @@ client.on('messageCreate', async (message) => {
                     .setColor('#5865F2')
                     .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
                     .setTitle('🎉 LÊN CẤP MỚI!')
-                    .setDescription(`Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**!${newLevel % 5 ===0 ? '\n🎁 Bạn nhận được **1 Rương Báu** (`.moruong`)!' : ''}`)
+                    .setDescription(`Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**!${newLevel % 5 === 0 ? '\n🎁 Bạn nhận được **1 Rương Báu** (`.moruong`)!' : ''}`)
                     .setTimestamp();
 
                 const targetChannel = message.guild.channels.cache.get(guildConfig.logChannel) || message.channel;
@@ -383,7 +255,6 @@ client.on('messageCreate', async (message) => {
         return message.reply('🚫 Quyền truy cập bị từ chối!');
     }
 
-    // --- LỆNH ADMIN MỚI ---
     if (command === 'set-kenhexp') {
         const channel = message.mentions.channels.first() || message.channel;
         const multiplier = parseInt(args[0] || args[1]);
@@ -407,7 +278,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'shop-add') {
         const content = args.join(' ');
         const parts = content.split('|').map(p => p.trim());
-        if (parts.length < 3) return message.reply('⚠️ Cú pháp: `.shop-add Tên | Giá | boost/title/theme | [Key/Title]`');
+        if (parts.length < 3) return message.reply('⚠️ Cú pháp: `.shop-add Tên | Giá | boost/title | [Title]`');
         const name = parts[0];
         const price = parseInt(parts[1]);
         const type = parts[2].toLowerCase();
@@ -415,12 +286,11 @@ client.on('messageCreate', async (message) => {
 
         const currentShop = guildConfig.shopItems;
         const newId = currentShop.length > 0 ? Math.max(...currentShop.map(i => i.id)) + 1 : 1;
-        currentShop.push({ id: newId, name, price, type, title: type === 'title' ? subValue : undefined, themeKey: type === 'theme' ? subValue : undefined });
+        currentShop.push({ id: newId, name, price, type, title: type === 'title' ? subValue : undefined });
         queueSave();
         return message.reply(`✅ Đã thêm vật phẩm ID ${newId} vào shop!`);
     }
 
-    // --- LỆNH THÀNH VIÊN ---
     if (command === 'moruong') {
         if ((userData.lootboxes || 0) <= 0) return message.reply('📦 Bạn không có Rương Báu nào! Hãy cày cấp độ để nhận rương.');
         userData.lootboxes -= 1;
@@ -448,25 +318,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`🎁 Bạn đã mở Rương Báu và nhận được: ${rewardText}! (Còn lại: ${userData.lootboxes} rương)`);
     }
 
-    if (command === 'theme') {
-        const sub = args[0]?.toLowerCase();
-        if (sub === 'chon') {
-            const chosenKey = args[1]?.toLowerCase();
-            if (!userData.unlockedThemes.includes(chosenKey)) {
-                return message.reply('❌ Bạn chưa sở hữu theme này! Hãy vào `.shop` để mua.');
-            }
-            userData.currentTheme = chosenKey;
-            queueSave();
-            return message.reply(`✅ Đã chuyển sang sử dụng theme Card **${chosenKey}**!`);
-        }
-
-        const embed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setTitle('🎨 Kho Theme Thẻ Rank Của Bạn')
-            .setDescription(`Theme hiện tại: \`${userData.currentTheme}\`\nCác theme đã mở: \`${userData.unlockedThemes.join(', ')}\`\n\nCách đổi: \`.theme chon <cyberpunk/anime/dark/default>\``);
-        return message.channel.send({ embeds: [embed] });
-    }
-
     if (command === 'shop') {
         const currentShop = guildConfig.shopItems;
         let shopText = currentShop.map(i => `**ID ${i.id}**:${i.name} — Giá: \`${i.price} Xu\``).join('\n');
@@ -488,9 +339,6 @@ client.on('messageCreate', async (message) => {
             userData.title = item.title;
             if (!userData.unlockedTitles.includes(item.title)) userData.unlockedTitles.push(item.title);
             message.reply(`✅ Đã sở hữu và bật danh hiệu **${item.title}**!`);
-        } else if (item.type === 'theme') {
-            if (!userData.unlockedThemes.includes(item.themeKey)) userData.unlockedThemes.push(item.themeKey);
-            message.reply(`✅ Đã mua Theme **${item.name}**! Dùng lệnh \`.theme chon ${item.themeKey}\` để sử dụng.`);
         }
         queueSave();
         return;
@@ -508,6 +356,7 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'tien' || command === 'vi') return message.reply(`💰 Số dư ví: **${userData.coins || 0} Xu** | 📦 Rương báu: **${userData.lootboxes || 0}**.`);
 
+    // --- LỆNH PROFILE / CAP DẠNG EMBED (KHÔNG CẦN CANVAS) ---
     if (command === 'cap' || command === 'profile' || command === 'thongtin') {
         const targetMember = message.mentions.members.first() || message.member;
         const targetUser = targetMember.user;
@@ -520,13 +369,24 @@ client.on('messageCreate', async (message) => {
         
         const rankIndex = allUsers.findIndex(u => u.id === targetUser.id);
         const rank = rankIndex !== -1 ? rankIndex + 1 : allUsers.length + 1;
+        const requiredXp = getXpForNextLevel(uData.level);
 
-        try {
-            const cardAttachment = await generateRankCard(targetUser, targetMember, uData, rank);
-            return message.channel.send({ files: [cardAttachment] });
-        } catch (err) {
-            return message.reply(`📊 **${targetUser.username}** — Cấp: **${uData.level}** | EXP: **${uData.xp}** | Rank: **#${rank}**`);
-        }
+        const profileEmbed = new EmbedBuilder()
+            .setColor('#5865F2')
+            .setAuthor({ name: `Hồ Sơ Cấp Độ — ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                { name: '📊 Xếp Hạng (Rank)', value: `\`#${rank}\``, inline: true },
+                { name: '🎖️ Cấp Độ (Level)', value: `\`${uData.level}\``, inline: true },
+                { name: '✨ Chuyển Sinh', value: `\`${uData.prestige || 0}\``, inline: true },
+                { name: '⚡ Kinh Nghiệm (EXP)', value: `\`${uData.xp} / ${requiredXp}\``, inline: true },
+                { name: '🏷️ Danh Hiệu', value: `\`${uData.title || 'Chưa có'}\``, inline: true },
+                { name: '💰 Số Dư Ví', value: `\`${uData.coins || 0} Xu\``, inline: true }
+            )
+            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [profileEmbed] });
     }
 
     if (command === 'bxh') {
