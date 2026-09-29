@@ -9,9 +9,9 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => res.send('🤖 Bot Discord đang hoạt động Online 24/7!'));
+app.get('/', (req, res) => res.send('Bot Discord đang hoạt động Online 24/7!'));
 app.get('/ping', (req, res) => res.status(200).send('PONG'));
-app.listen(PORT, () => console.log(`🌐 Server Web lắng nghe tại port ${PORT}`));
+app.listen(PORT, () => console.log(`Server Web lắng nghe tại port ${PORT}`));
 
 // --- 2. CẤU HÌNH BOT DISCORD ---
 const client = new Client({
@@ -21,20 +21,39 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildInvites
     ]
 });
 
 const TOKEN = process.env.TOKEN || 'THAY_TOKEN_BOT_CUA_BAN_VAO_DAY';
 const PREFIX = '.';
-const MY_DISCORD_ID = '1498554147304247296';
+const MY_DISCORD_ID = '1298727049451540541';
 const DATA_FILE = path.join(__dirname, 'level_data.json');
 const COOLDOWN_TIME = 60000;
 
 const cooldowns = new Map();
 const voiceStates = new Map();
 const guildInvites = new Map();
+
+// --- DANH HIỆU TIẾN HÓA THEO CẤP ĐỘ ---
+const LEVEL_TITLES = [
+    { level: 1, title: '[Em Bé Tập Lẫy]' },
+    { level: 5, title: '[Bé Ngoan Điểm Mười]' },
+    { level: 15, title: '[Cử Nhân Nợ Môn]' },
+    { level: 30, title: '[Người Lớn Tập Sự]' }
+];
+
+function checkLevelTitles(userData) {
+    if (!userData.unlockedTitles) userData.unlockedTitles = ['[Em Bé Tập Lẫy]'];
+    let newlyUnlocked = [];
+    LEVEL_TITLES.forEach(item => {
+        if (userData.level >= item.level && !userData.unlockedTitles.includes(item.title)) {
+            userData.unlockedTitles.push(item.title);
+            newlyUnlocked.push(item.title);
+        }
+    });
+    return newlyUnlocked;
+}
 
 // --- 3. CƠ CHẾ QUẢN LÝ DỮ LIỆU ---
 let memoryDb = {};
@@ -48,7 +67,7 @@ function loadData() {
     try {
         return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     } catch (err) {
-        console.error('⚠️ Lỗi đọc file data:', err);
+        console.error('Lỗi đọc file data:', err);
         return {};
     }
 }
@@ -59,7 +78,7 @@ function queueSave() {
         try {
             await fsPromises.writeFile(DATA_FILE, JSON.stringify(memoryDb, null, 2));
         } catch (err) {
-            console.error('❌ Lỗi lưu dữ liệu:', err);
+            console.error('Lỗi lưu dữ liệu:', err);
         }
     }, 3000);
 }
@@ -74,27 +93,27 @@ function initGuild(guildId) {
             config: { 
                 logChannel: null, 
                 noXpChannels: [], 
-                isDoubleXp: false, 
-                bannedWords: [], 
-                statsChannels: {},
                 admins: [MY_DISCORD_ID], 
                 staffs: [],
-                roleRewards: {}, 
-                prestigeRewards: {}, 
-                channelMultipliers: {},
                 shopItems: [
-                    { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 500, type: 'boost' },
-                    { id: 2, name: 'Danh hiệu: 🐉 Chiến Thần Chat', price: 1000, type: 'title', title: '🐉 Chiến Thần Chat' }
-                ]
+                    { id: 1, name: 'Thẻ X2 EXP (1 giờ)', price: 400, stock: 30, type: 'boost' },
+                    { id: 2, name: 'Đội Trưởng VIP', price: 800, stock: 30, type: 'title', title: 'Đội Trưởng VIP' },
+                    { id: 3, name: 'Đại Gia Ngầm', price: 1500, stock: 30, type: 'title', title: 'Đại Gia Ngầm' },
+                    { id: 4, name: 'Mèo Ú Mê Ngủ', price: 2000, stock: 30, type: 'title', title: 'Mèo Ú Mê Ngủ' },
+                    { id: 5, name: 'Chúa Tể Bóp Team', price: 1500, stock: 30, type: 'title', title: 'Chúa Tể Bóp Team' }
+                ],
+                marketplace: [] 
             },
             users: {}
         };
     }
     if (!memoryDb[guildId].config.admins) memoryDb[guildId].config.admins = [MY_DISCORD_ID];
     if (!memoryDb[guildId].config.staffs) memoryDb[guildId].config.staffs = [];
-    if (!memoryDb[guildId].config.roleRewards) memoryDb[guildId].config.roleRewards = {};
-    if (!memoryDb[guildId].config.prestigeRewards) memoryDb[guildId].config.prestigeRewards = {};
-    if (!memoryDb[guildId].config.channelMultipliers) memoryDb[guildId].config.channelMultipliers = {};
+    if (!memoryDb[guildId].config.marketplace) memoryDb[guildId].config.marketplace = [];
+    
+    memoryDb[guildId].config.shopItems.forEach(item => {
+        if (item.stock === undefined) item.stock = 30;
+    });
 }
 
 function initUser(guildId, userId) {
@@ -102,59 +121,32 @@ function initUser(guildId, userId) {
     if (!memoryDb[guildId].users[userId]) {
         memoryDb[guildId].users[userId] = {
             xp: 0, level: 0, messages: 0, coins: 0, lastDaily: 0,
-            title: 'Chưa có', unlockedTitles: ['Chưa có'], personalBoostUntil: 0, warns: [],
-            quests: { msgCount: 0, claimed: false, date: '' }, dmNotification: false,
-            prestige: 0, lootboxes: 0, invites: { regular: 0, left: 0, fake: 0 }
+            title: '[Em Bé Tập Lẫy]', unlockedTitles: ['[Em Bé Tập Lẫy]'], personalBoostUntil: 0,
+            prestige: 0, giftboxes: 0, inventory: [], invites: { regular: 0 }
         };
     }
     let u = memoryDb[guildId].users[userId];
     if (u.prestige === undefined) u.prestige = 0;
-    if (u.lootboxes === undefined) u.lootboxes = 0;
-    if (!u.invites) u.invites = { regular: 0, left: 0, fake: 0 };
-    if (!u.unlockedTitles) u.unlockedTitles = ['Chưa có', u.title || 'Chưa có'];
-}
-
-async function checkAndAwardRoles(member, guildId, newLevel, newPrestige) {
-    const config = memoryDb[guildId].config;
-    const guild = member.guild;
-
-    if (config.roleRewards) {
-        for (const [lvlStr, roleId] of Object.entries(config.roleRewards)) {
-            const reqLvl = parseInt(lvlStr);
-            if (newLevel >= reqLvl) {
-                const role = guild.roles.cache.get(roleId);
-                if (role && !member.roles.cache.has(roleId)) {
-                    await member.roles.add(role).catch(() => {});
-                }
-            }
-        }
+    if (u.giftboxes === undefined) {
+        u.giftboxes = u.lootboxes || 0;
+        delete u.lootboxes;
     }
-
-    if (config.prestigeRewards) {
-        for (const [presStr, roleId] of Object.entries(config.prestigeRewards)) {
-            const reqPres = parseInt(presStr);
-            if (newPrestige >= reqPres) {
-                const role = guild.roles.cache.get(roleId);
-                if (role && !member.roles.cache.has(roleId)) {
-                    await member.roles.add(role).catch(() => {});
-                }
-            }
-        }
-    }
+    if (!u.inventory) u.inventory = [];
+    if (!u.invites) u.invites = { regular: 0 };
+    if (!u.unlockedTitles) u.unlockedTitles = ['[Em Bé Tập Lẫy]'];
+    if (!u.title) u.title = '[Em Bé Tập Lẫy]';
 }
 
 // --- CÁC SỰ KIỆN CLIENT ---
 client.once('ready', async () => {
     memoryDb = loadData();
-    console.log(`🤖 Bot đã sẵn sàng: ${client.user.tag}`);
+    console.log(`Bot đã sẵn sàng: ${client.user.tag}`);
 
     for (const guild of client.guilds.cache.values()) {
         try {
             const invites = await guild.invites.fetch();
             guildInvites.set(guild.id, invites);
-        } catch (e) {
-            console.log(`Không thể fetch invites cho server ${guild.name}`);
-        }
+        } catch (e) {}
     }
 });
 
@@ -181,21 +173,8 @@ client.on('guildMemberAdd', async (member) => {
     if (usedInvite && usedInvite.inviter) {
         const inviterId = usedInvite.inviter.id;
         initUser(guildId, inviterId);
-        
         memoryDb[guildId].users[inviterId].invites.regular += 1;
         queueSave();
-
-        const guildConfig = memoryDb[guildId].config;
-        const targetChannel = member.guild.channels.cache.get(guildConfig.logChannel) || member.guild.systemChannel;
-        
-        if (targetChannel) {
-            const welcomeEmbed = new EmbedBuilder()
-                .setColor('#00FF00')
-                .setTitle('👋 Thành Viên Mới Gia Nhập!')
-                .setDescription(`Chào mừng ${member} đến với **${member.guild.name}**!\n🎯 Người mời: **${usedInvite.inviter.tag}** (Đã mời: ${memoryDb[guildId].users[inviterId].invites.regular} người)`)
-                .setTimestamp();
-            targetChannel.send({ embeds: [welcomeEmbed] }).catch(() => {});
-        }
     }
 });
 
@@ -215,6 +194,15 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                 initUser(guildId, userId);
                 let userData = memoryDb[guildId].users[userId];
                 userData.xp += minutes * 15;
+                
+                let xpNeeded = getXpForNextLevel(userData.level);
+                while (userData.xp >= xpNeeded) {
+                    userData.xp -= xpNeeded;
+                    userData.level += 1;
+                    if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
+                    checkLevelTitles(userData);
+                    xpNeeded = getXpForNextLevel(userData.level);
+                }
                 queueSave();
             }
         }
@@ -244,8 +232,7 @@ client.on('messageCreate', async (message) => {
         const now = Date.now();
 
         if (now - lastMsgTime > COOLDOWN_TIME) {
-            const channelMultiplier = guildConfig.channelMultipliers[message.channel.id] || 1;
-            let xpGained = (guildConfig.isDoubleXp ? 30 : 15) * channelMultiplier;
+            let xpGained = 15;
             if (now < userData.personalBoostUntil) xpGained *= 2;
 
             userData.xp += xpGained;
@@ -253,20 +240,22 @@ client.on('messageCreate', async (message) => {
 
             let xpNeeded = getXpForNextLevel(userData.level);
             if (userData.xp >= xpNeeded) {
+                userData.xp -= xpNeeded;
                 userData.level += 1;
                 const newLevel = userData.level;
 
                 if (newLevel % 5 === 0) {
-                    userData.lootboxes = (userData.lootboxes || 0) + 1;
+                    userData.giftboxes = (userData.giftboxes || 0) + 1;
                 }
 
-                await checkAndAwardRoles(message.member, guildId, newLevel, userData.prestige);
+                let newlyUnlocked = checkLevelTitles(userData);
+                let titleMsg = newlyUnlocked.length > 0 ? `\n- Mở khóa danh hiệu mới: ${newlyUnlocked.join(', ')}` : '';
 
                 const levelEmbed = new EmbedBuilder()
                     .setColor('#5865F2')
                     .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
-                    .setTitle('🎉 LÊN CẤP MỚI!')
-                    .setDescription(`Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**!${newLevel % 5 === 0 ? '\n🎁 Bạn nhận được **1 Rương Báu** (`.moruong`)!' : ''}`)
+                    .setTitle('LÊN CẤP MỚI!')
+                    .setDescription(`Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**!${newLevel % 5 === 0 ? '\nNhận được **1 Hộp Quà** (`.mohopqua`)!' : ''}${titleMsg}`)
                     .setTimestamp();
 
                 const targetChannel = message.guild.channels.cache.get(guildConfig.logChannel) || message.channel;
@@ -284,370 +273,768 @@ client.on('messageCreate', async (message) => {
     const isBotAdmin = guildConfig.admins.includes(userId);
     const isBotStaff = guildConfig.staffs.includes(userId) || isBotAdmin || message.member.permissions.has(PermissionFlagsBits.ModerateMembers);
 
-    // --- 1. LỆNH TRỢ GIÚP / HELP (.hlp) ---
+    // --- 1. LỆNH HELP ---
     if (command === 'hlp' || command === 'help') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#0099ff')
-            .setTitle('📖 Bảng Trợ Giúp & Danh Sách Lệnh Bot')
-            .setDescription('Dưới đây là toàn bộ danh sách lệnh thành viên, kiểm duyệt và quản trị hệ thống:')
+            .setTitle('HỆ THỐNG TRỢ GIÚP & HƯỚNG DẪN LỆNH')
+            .setDescription('Dưới đây là toàn bộ danh sách lệnh của bot:')
             .addFields(
                 { 
-                    name: '📊 Cấp Độ & Hồ Sơ', 
-                    value: '• `.cap` (hoặc `.rank`, `.profile`) — Xem thẻ ảnh cấp độ, rank, EXP và danh hiệu\n• `.bxh` — Xem bảng xếp hạng top 10 thành viên' 
+                    name: 'Nhóm Thành Viên', 
+                    value: '• `.cap` — Xem thẻ hồ sơ ảnh.\n' +
+                           '• `.bxh` — Xem bảng xếp hạng cấp độ dạng ảnh Canvas.\n' +
+                           '• `.danhhieu` — Quản lý/chọn danh hiệu.\n' +
+                           '• `.chuyensinh` (hoặc `.cs`) — Chuyển sinh khi đạt cấp 100.\n' +
+                           '• `.mohopqua` — Mở hộp quà khi lên cấp 5.\n' +
+                           '• `.daily` — Điểm danh nhận SWC & EXP.\n' +
+                           '• `.tien` (hoặc `.vi`) — Kiểm tra số dư ví.\n' +
+                           '• `.pay @User <số tiền>` — Chuyển SWC cho người khác.\n' +
+                           '• `.shop` — Mở cửa hàng chính hãng dạng ảnh.\n' +
+                           '• `.mua <ID>` — Mua vật phẩm shop chính.\n' +
+                           '• `.market` — Xem chợ P2P.\n' +
+                           '• `.market-rao <số> <giá>` — Đăng bán đồ lên chợ.\n' +
+                           '• `.market-mua <ID>` — Mua đồ trên chợ.\n' +
+                           '• `.tui` — Xem túi đồ cá nhân.\n' +
+                           '• `.sd <số>` — Sử dụng vật phẩm.' 
                 },
                 { 
-                    name: '🎁 Tương Tác & Kinh Tế', 
-                    value: '• `.daily` — Điểm danh nhận Xu & EXP mỗi ngày\n• `.moruong` — Mở rương báu nhận thưởng ngẫu nhiên\n• `.chuyensinh` (hoặc `.prestige`) — Chuyển sinh khi đạt Cấp 50\n• `.shop` & `.mua <ID>` — Cửa hàng vật phẩm\n• `.tien` — Kiểm tra số dư ví & rương\n• `.loimoi` (hoặc `.invites`) — Xem thống kê số lượng mời bạn bè' 
-                },
-                { 
-                    name: '🛡️ Lệnh Kiểm Duyệt (Staff/Admin)', 
-                    value: '• `.kick @User [lý do]` — Đuổi thành viên\n• `.ban @User [lý do]` — Cấm thành viên\n• `.timeout @User <phút> [lý do]` — Đình chỉ chat tạm thời\n• `.untimeout @User` — Gỡ timeout\n• `.clear <1-100>` — Xóa tin nhắn nhanh' 
-                },
-                { 
-                    name: '⚙️ Lệnh Quản Trị & Cấu Hình (Admin)', 
-                    value: '• `.addadmin` / `.removeadmin` — Quản lý Admin bot\n• `.addstaff` / `.removestaff` — Quản lý Staff bot\n• `.set-kenhthongbao #kenh` — Cài kênh thông báo lên cấp\n• `.set-kenhexp #kenh <số>` — Cài hệ số nhân EXP kênh\n• `.set-rolelevel` / `.set-roleprestige` — Thưởng Role tự động\n• `.shop-add` / `.shop-remove` — Quản lý cửa hàng\n• `.settitle`, `.givexp`, `.removexp`, `.resetxp`, `.givecoin`, `.removecoin`' 
+                    name: 'Nhóm Kiểm Duyệt & Quản Trị', 
+                    value: '• `.kick @User [lý do]` — Đuổi thành viên khỏi server.\n' +
+                           '• `.ban @User [lý do]` — Cấm thành viên khỏi server.\n' +
+                           '• `.timeout @User <phút>` — Khóa chat thành viên.\n' +
+                           '• `.untimeout @User` — Mở khóa chat thành viên.\n' +
+                           '• `.clear <1-100>` — Xóa hàng loạt tin nhắn.\n' +
+                           '• `.staff-add @User` — Thêm staff mới.\n' +
+                           '• `.staff-del @User` — Xóa quyền staff.\n' +
+                           '• `.shop-add Tên | Giá | Kho | Type` — Thêm đồ vào shop.\n' +
+                           '• `.shop-del <ID>` — Xóa món hàng khỏi shop.\n' +
+                           '• `.shop-setstock <ID> <số>` — Đổi số lượng kho.\n' +
+                           '• `.shop-setprice <ID> <giá>` — Đổi giá tiền món hàng.\n' +
+                           '• `.givecoin / .removecoin` — Tặng/trừ tiền thành viên.\n' +
+                           '• `.givexp / .removexp / .setlevel` — Quản lý cấp độ.\n' +
+                           '• `.danhhieu-tao <Tên danh hiệu>` — Tạo danh hiệu mới cho server.\n' +
+                           '• `.danhhieu-set @User <Tên danh hiệu>` — Cấp trực tiếp danh hiệu.' 
                 }
             )
-            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
+            .setFooter({ text: 'Bot System' })
             .setTimestamp();
-
         return message.channel.send({ embeds: [helpEmbed] });
     }
 
-    // --- 2. LỆNH KIỂM DUYỆT (MODERATION) ---
-    const modCommands = ['kick', 'ban', 'timeout', 'untimeout', 'clear'];
-    if (modCommands.includes(command)) {
-        if (!isBotStaff) return message.reply('🚫 Bạn không có quyền sử dụng lệnh kiểm duyệt này!');
+    // --- 2. CÁC LỆNH KIỂM DUYỆT (MODERATION) ---
+    if (['kick', 'ban', 'timeout', 'untimeout', 'clear'].includes(command) && !isBotStaff) {
+        return message.reply('Bạn không có quyền dùng nhóm lệnh kiểm duyệt này!');
     }
 
     if (command === 'kick') {
         const targetMember = message.mentions.members.first();
         const reason = args.slice(1).join(' ') || 'Không có lý do';
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.kick @User [lý do]`');
-        if (!targetMember.kickable) return message.reply('🚫 Bot không đủ quyền để kick thành viên này.');
-        await targetMember.kick(reason).catch(err => message.reply('❌ Lỗi: ' + err.message));
-        return message.reply(`✅ Đã kick ${targetMember.user.tag}. Lý do: \`${reason}\``);
+        if (!targetMember) return message.reply('Cú pháp: `.kick @User [lý do]`');
+        await targetMember.kick(reason).catch(err => message.reply('Lỗi: ' + err.message));
+        return message.reply(`Đã kick thành công ${targetMember.user.tag}.`);
     }
 
     if (command === 'ban') {
         const targetMember = message.mentions.members.first();
         const reason = args.slice(1).join(' ') || 'Không có lý do';
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.ban @User [lý do]`');
-        if (!targetMember.bannable) return message.reply('🚫 Bot không đủ quyền để ban thành viên này.');
-        await targetMember.ban({ reason }).catch(err => message.reply('❌ Lỗi: ' + err.message));
-        return message.reply(`✅ Đã ban ${targetMember.user.tag}. Lý do: \`${reason}\``);
+        if (!targetMember) return message.reply('Cú pháp: `.ban @User [lý do]`');
+        await targetMember.ban({ reason }).catch(err => message.reply('Lỗi: ' + err.message));
+        return message.reply(`Đã ban thành công ${targetMember.user.tag}.`);
     }
 
-    if (command === 'timeout' || command === 'mute') {
+    if (command === 'timeout') {
         const targetMember = message.mentions.members.first();
         const minutes = parseInt(args[1]);
-        const reason = args.slice(2).join(' ') || 'Không có lý do';
-        if (!targetMember || isNaN(minutes)) return message.reply('⚠️ Cú pháp: `.timeout @User <số_phút> [lý do]`');
-        await targetMember.timeout(minutes * 60 * 1000, reason).catch(err => message.reply('❌ Lỗi: ' + err.message));
-        return message.reply(`🔇 Đã timeout ${targetMember} trong **${minutes} phút**. Lý do: \`${reason}\``);
+        if (!targetMember || isNaN(minutes)) return message.reply('Cú pháp: `.timeout @User <phút>`');
+        await targetMember.timeout(minutes * 60 * 1000).catch(err => message.reply('Lỗi thực hiện timeout'));
+        return message.reply(`Đã timeout ${targetMember} trong${minutes} phút.`);
     }
 
-    if (command === 'untimeout' || command === 'unmute') {
+    if (command === 'untimeout') {
         const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.untimeout @User`');
-        await targetMember.timeout(null).catch(err => message.reply('❌ Lỗi: ' + err.message));
-        return message.reply(`🔊 Đã gỡ timeout cho ${targetMember}.`);
+        if (!targetMember) return message.reply('Cú pháp: `.untimeout @User`');
+        await targetMember.timeout(null).catch(() => {});
+        return message.reply(`Đã gỡ timeout cho ${targetMember}.`);
     }
 
-    if (command === 'clear' || command === 'purge') {
+    if (command === 'clear') {
         const amount = parseInt(args[0]);
-        if (isNaN(amount) || amount < 1 || amount > 100) return message.reply('⚠️ Cú pháp: `.clear <1-100>`');
-        try {
-            const fetched = await message.channel.bulkDelete(amount + 1, true);
-            const msg = await message.channel.send(`🧹 Đã xóa thành công **${fetched.size - 1}** tin nhắn.`);
-            setTimeout(() => msg.delete().catch(() => {}), 3000);
-        } catch (err) {
-            return message.reply('❌ Chỉ có thể xóa tin nhắn gửi trong vòng 14 ngày trở lại đây.');
-        }
+        if (isNaN(amount) || amount < 1 || amount > 100) return message.reply('Cú pháp: `.clear <1-100>`');
+        const fetched = await message.channel.bulkDelete(amount + 1, true).catch(() => {});
+        const msg = await message.channel.send(`Đã xóa ${fetched ? fetched.size - 1 : 0} tin nhắn.`);
+        setTimeout(() => msg.delete().catch(() => {}), 3000);
         return;
     }
 
-    // --- 3. LỆNH QUẢN LÝ QUYỀN (ADMIN) ---
-    const adminCommands = [
-        'set-kenhexp', 'set-rolelevel', 'set-roleprestige', 
-        'shop-add', 'shop-remove', 'set-kenhthongbao',
-        'settitle', 'givexp', 'removexp', 'resetxp', 'givecoin', 'removecoin',
-        'addadmin', 'removeadmin', 'addstaff', 'removestaff'
-    ];
-    if (adminCommands.includes(command) && !isBotAdmin) {
-        return message.reply('🚫 Quyền truy cập bị từ chối! Chỉ **Admin của Bot** mới dùng được lệnh này.');
-    }
-
-    if (command === 'addadmin') {
+    // --- QUẢN LÝ STAFF ---
+    if (['staff-add', 'staff-del'].includes(command)) {
+        if (!isBotAdmin) return message.reply('Chỉ Admin bot mới có quyền thêm/xóa Staff!');
         const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.addadmin @User`');
-        if (guildConfig.admins.includes(targetMember.id)) return message.reply('⚠️ Người này đã là Admin từ trước!');
-        guildConfig.admins.push(targetMember.id);
-        queueSave();
-        return message.reply(`✅ Đã thêm ${targetMember} vào danh sách **Admin**.`);
-    }
+        if (!targetMember) return message.reply(`Cú pháp: \`.${command} @User\``);
 
-    if (command === 'removeadmin') {
-        const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.removeadmin @User`');
-        if (targetMember.id === MY_DISCORD_ID) return message.reply('🚫 Không thể gỡ quyền Admin gốc của chủ sở hữu bot!');
-        const index = guildConfig.admins.indexOf(targetMember.id);
-        if (index === -1) return message.reply('⚠️ Người này không có trong danh sách Admin!');
-        guildConfig.admins.splice(index, 1);
-        queueSave();
-        return message.reply(`✅ Đã gỡ quyền Admin của ${targetMember}.`);
-    }
-
-    if (command === 'addstaff') {
-        const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.addstaff @User`');
-        if (guildConfig.staffs.includes(targetMember.id)) return message.reply('⚠️ Người này đã là Staff từ trước!');
-        guildConfig.staffs.push(targetMember.id);
-        queueSave();
-        return message.reply(`✅ Đã thêm ${targetMember} vào danh sách **Staff**.`);
-    }
-
-    if (command === 'removestaff') {
-        const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.removestaff @User`');
-        const index = guildConfig.staffs.indexOf(targetMember.id);
-        if (index === -1) return message.reply('⚠️ Người này không có trong danh sách Staff!');
-        guildConfig.staffs.splice(index, 1);
-        queueSave();
-        return message.reply(`✅ Đã gỡ quyền Staff của ${targetMember}.`);
-    }
-
-    // --- 4. LỆNH CẤU HÌNH & USER QUẢN LÝ ---
-    if (command === 'settitle') {
-        const targetMember = message.mentions.members.first();
-        const newTitle = args.slice(1).join(' ');
-        if (!targetMember || !newTitle) return message.reply('⚠️ Cú pháp: `.settitle @User <Danh hiệu>`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].title = newTitle;
-        if (!memoryDb[guildId].users[targetMember.id].unlockedTitles.includes(newTitle)) {
-            memoryDb[guildId].users[targetMember.id].unlockedTitles.push(newTitle);
+        if (command === 'staff-add') {
+            if (guildConfig.staffs.includes(targetMember.id)) return message.reply('Người này đã là Staff rồi!');
+            guildConfig.staffs.push(targetMember.id);
+            queueSave();
+            return message.reply(`Đã cấp quyền Staff cho ${targetMember.user.tag}!`);
+        } else if (command === 'staff-del') {
+            guildConfig.staffs = guildConfig.staffs.filter(id => id !== targetMember.id);
+            queueSave();
+            return message.reply(`Đã tước quyền Staff của ${targetMember.user.tag}.`);
         }
-        queueSave();
-        return message.reply(`✅ Đã đặt danh hiệu \`${newTitle}\` cho ${targetMember}.`);
     }
 
-    if (command === 'givexp') {
-        const targetMember = message.mentions.members.first();
-        const amount = parseInt(args[1]);
-        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.givexp @User <số_exp>`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].xp += amount;
-        queueSave();
-        return message.reply(`✅ Đã cộng **${amount} EXP** cho ${targetMember}.`);
+    if (['shop-add', 'shop-del', 'shop-setstock', 'shop-setprice', 'setlevel', 'givexp', 'removexp', 'resetxp', 'givecoin', 'removecoin', 'danhhieu-tao', 'danhhieu-set'].includes(command) && !isBotAdmin) {
+        return message.reply('Chỉ Admin bot mới dùng được lệnh này!');
     }
 
-    if (command === 'removexp') {
-        const targetMember = message.mentions.members.first();
-        const amount = parseInt(args[1]);
-        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.removexp @User <số_exp>`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].xp = Math.max(0, memoryDb[guildId].users[targetMember.id].xp - amount);
-        queueSave();
-        return message.reply(`✅ Đã trừ **${amount} EXP** của ${targetMember}.`);
-    }
-
-    if (command === 'resetxp') {
-        const targetMember = message.mentions.members.first();
-        if (!targetMember) return message.reply('⚠️ Cú pháp: `.resetxp @User`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].xp = 0;
-        memoryDb[guildId].users[targetMember.id].level = 0;
-        queueSave();
-        return message.reply(`🔄 Đã reset EXP và Level của ${targetMember}.`);
-    }
-
+    // --- LỆNH ADMIN QUẢN LÝ TIỀN & LEVEL ---
     if (command === 'givecoin') {
-        const targetMember = message.mentions.members.first();
+        const targetUser = message.mentions.users.first();
         const amount = parseInt(args[1]);
-        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.givecoin @User <số_xu>`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].coins = (memoryDb[guildId].users[targetMember.id].coins || 0) + amount;
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.givecoin @User <số tiền>`');
+        initUser(guildId, targetUser.id);
+        memoryDb[guildId].users[targetUser.id].coins = (memoryDb[guildId].users[targetUser.id].coins || 0) + amount;
         queueSave();
-        return message.reply(`✅ Đã cộng **${amount} Xu** cho ${targetMember}.`);
+        return message.reply(`Đã cộng thêm **${amount} SWC** cho ${targetUser.tag}.`);
     }
 
     if (command === 'removecoin') {
-        const targetMember = message.mentions.members.first();
+        const targetUser = message.mentions.users.first();
         const amount = parseInt(args[1]);
-        if (!targetMember || isNaN(amount)) return message.reply('⚠️ Cú pháp: `.removecoin @User <số_xu>`');
-        initUser(guildId, targetMember.id);
-        memoryDb[guildId].users[targetMember.id].coins = Math.max(0, (memoryDb[guildId].users[targetMember.id].coins || 0) - amount);
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.removecoin @User <số tiền>`');
+        initUser(guildId, targetUser.id);
+        let u = memoryDb[guildId].users[targetUser.id];
+        u.coins = Math.max(0, (u.coins || 0) - amount);
         queueSave();
-        return message.reply(`✅ Đã trừ **${amount} Xu** của ${targetMember}.`);
+        return message.reply(`Đã trừ **${amount} SWC** của ${targetUser.tag}.`);
     }
 
-    if (command === 'set-kenhexp') {
-        const channel = message.mentions.channels.first() || message.channel;
-        const multiplier = parseInt(args[0] || args[1]);
-        if (isNaN(multiplier) || multiplier < 1 || multiplier > 10) return message.reply('⚠️ Cú pháp: `.set-kenhexp #kenh <1-10>`');
-        guildConfig.channelMultipliers[channel.id] = multiplier;
+    if (command === 'givexp') {
+        const targetUser = message.mentions.users.first();
+        const amount = parseInt(args[1]);
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.givexp @User <số EXP>`');
+        initUser(guildId, targetUser.id);
+        let u = memoryDb[guildId].users[targetUser.id];
+        u.xp += amount;
+        
+        let xpNeeded = getXpForNextLevel(u.level);
+        while (u.xp >= xpNeeded) {
+            u.xp -= xpNeeded;
+            u.level += 1;
+            if (u.level % 5 === 0) u.giftboxes = (u.giftboxes || 0) + 1;
+            checkLevelTitles(u);
+            xpNeeded = getXpForNextLevel(u.level);
+        }
         queueSave();
-        return message.reply(`✅ Đã đặt hệ số EXP kênh ${channel} là **x${multiplier}**.`);
+        return message.reply(`Đã cộng **${amount} EXP** cho ${targetUser.tag}.`);
     }
 
-    if (command === 'set-kenhthongbao') {
-        const channel = message.mentions.channels.first();
-        if (!channel) return message.reply('⚠️ Cú pháp: `.set-kenhthongbao #kenh`');
-        guildConfig.logChannel = channel.id;
+    if (command === 'setlevel') {
+        const targetUser = message.mentions.users.first();
+        const newLvl = parseInt(args[1]);
+        if (!targetUser || isNaN(newLvl) || newLvl < 0) return message.reply('Cú pháp: `.setlevel @User <cấp độ>`');
+        initUser(guildId, targetUser.id);
+        let u = memoryDb[guildId].users[targetUser.id];
+        u.level = newLvl;
+        checkLevelTitles(u);
         queueSave();
-        return message.reply(`✅ Đã đặt kênh ${channel} làm nơi gửi thông báo lên cấp!`);
+        return message.reply(`Đã đặt cấp độ của ${targetUser.tag} thành **Cấp ${newLvl}**.`);
     }
 
-    if (command === 'set-rolelevel') {
-        const levelReq = parseInt(args[0]);
-        const role = message.mentions.roles.first();
-        if (isNaN(levelReq) || !role) return message.reply('⚠️ Cú pháp: `.set-rolelevel <level> @Role`');
-        guildConfig.roleRewards[levelReq] = role.id;
+    // --- LỆNH ADMIN TẠO VÀ SET DANH HIỆU ---
+    if (command === 'danhhieu-tao') {
+        const newTitle = args.join(' ');
+        if (!newTitle) return message.reply('Cú pháp: `.danhhieu-tao <Tên danh hiệu>` (Ví dụ: `.danhhieu-tao [Huyền Thoại]`)');
+        
+        const existsInShop = guildConfig.shopItems.some(i => i.type === 'title' && i.title?.toLowerCase() === newTitle.toLowerCase());
+        if (!existsInShop) {
+            const currentShop = guildConfig.shopItems;
+            const newId = currentShop.length > 0 ? Math.max(...currentShop.map(i => i.id)) + 1 : 1;
+            currentShop.push({
+                id: newId,
+                name: `Danh hiệu: ${newTitle}`,
+                price: 1000,
+                stock: 50,
+                type: 'title',
+                title: newTitle
+            });
+        }
         queueSave();
-        return message.reply(`✅ Đã thiết lập role thưởng cho Cấp ${levelReq}.`);
+        return message.reply(`Đã tạo thành công danh hiệu **${newTitle}** và tự động thêm vào cửa hàng chính.`);
     }
 
-    if (command === 'set-roleprestige') {
-        const presReq = parseInt(args[0]);
-        const role = message.mentions.roles.first();
-        if (isNaN(presReq) || !role) return message.reply('⚠️ Cú pháp: `.set-roleprestige <chuyển_sinh> @Role`');
-        guildConfig.prestigeRewards[presReq] = role.id;
+    if (command === 'danhhieu-set') {
+        const targetUser = message.mentions.users.first();
+        const titleName = args.slice(1).join(' ');
+
+        if (!targetUser || !titleName) {
+            return message.reply('Cú pháp: `.danhhieu-set @User <Tên danh hiệu>`');
+        }
+
+        initUser(guildId, targetUser.id);
+        const targetUserData = memoryDb[guildId].users[targetUser.id];
+
+        if (!targetUserData.unlockedTitles.includes(titleName)) {
+            targetUserData.unlockedTitles.push(titleName);
+        }
+        
+        targetUserData.title = titleName;
         queueSave();
-        return message.reply(`✅ Đã thiết lập role thưởng cho cấp chuyển sinh ${presReq}.`);
+
+        return message.reply(`Đã cấp và trang bị thành công danh hiệu **${titleName}** cho ${targetUser.tag}!`);
+    }
+
+    if (command === 'shop-del') {
+        const itemId = parseInt(args[0]);
+        if (isNaN(itemId)) return message.reply('Cú pháp: `.shop-del <ID>`');
+        const itemIndex = guildConfig.shopItems.findIndex(i => i.id === itemId);
+        if (itemIndex === -1) return message.reply(`Không tìm thấy vật phẩm ID **#${itemId}** trong shop!`);
+        const removedItem = guildConfig.shopItems.splice(itemIndex, 1)[0];
+        queueSave();
+        return message.reply(`Đã xóa **"${removedItem.name}"** khỏi cửa hàng.`);
+    }
+
+    if (command === 'shop-setstock') {
+        const itemId = parseInt(args[0]);
+        const newStock = parseInt(args[1]);
+        if (isNaN(itemId) || isNaN(newStock) || newStock < 0) return message.reply('Cú pháp: `.shop-setstock <ID> <số lượng>`');
+        const item = guildConfig.shopItems.find(i => i.id === itemId);
+        if (!item) return message.reply(`Không tìm thấy vật phẩm ID **#${itemId}**!`);
+        item.stock = newStock;
+        queueSave();
+        return message.reply(`Đã cập nhật kho vật phẩm **"${item.name}"** thành **${newStock}**.`);
+    }
+
+    if (command === 'shop-setprice') {
+        const itemId = parseInt(args[0]);
+        const newPrice = parseInt(args[1]);
+        if (isNaN(itemId) || isNaN(newPrice) || newPrice < 0) {
+            return message.reply('Cú pháp: `.shop-setprice <ID vật phẩm> <giá tiền mới SWC>`');
+        }
+        const item = guildConfig.shopItems.find(i => i.id === itemId);
+        if (!item) return message.reply(`Không tìm thấy vật phẩm có ID **#${itemId}** trong shop chính!`);
+
+        const oldPrice = item.price;
+        item.price = newPrice;
+        queueSave();
+
+        return message.reply(`Đã đổi giá vật phẩm **"${item.name}"** (ID: #${itemId}) từ **${oldPrice} SWC** thành **${newPrice} SWC** thành công!`);
     }
 
     if (command === 'shop-add') {
         const content = args.join(' ');
         const parts = content.split('|').map(p => p.trim());
-        if (parts.length < 3) return message.reply('⚠️ Cú pháp: `.shop-add Tên | Giá | boost/title | [Title]`');
-        const name = parts[0];
-        const price = parseInt(parts[1]);
-        const type = parts[2].toLowerCase();
-        const subValue = parts[3] || '';
-
+        if (parts.length < 3) return message.reply('Cú pháp: `.shop-add Tên | Giá SWC | boost/title | [Title]`');
+        let name = parts[0], price = parseInt(parts[1]), stock = 30, type = '', subValue = '';
+        if (!isNaN(parseInt(parts[2]))) {
+            stock = parseInt(parts[2]);
+            type = (parts[3] || '').toLowerCase();
+            subValue = parts[4] || '';
+        } else {
+            type = (parts[2] || '').toLowerCase();
+            subValue = parts[3] || '';
+        }
+        if (isNaN(price) || isNaN(stock)) return message.reply('Giá và số lượng phải hợp lệ!');
         const currentShop = guildConfig.shopItems;
         const newId = currentShop.length > 0 ? Math.max(...currentShop.map(i => i.id)) + 1 : 1;
-        currentShop.push({ id: newId, name, price, type, title: type === 'title' ? subValue : undefined });
+        currentShop.push({ id: newId, name, price, stock, type, title: type === 'title' ? subValue : undefined });
         queueSave();
-        return message.reply(`✅ Đã thêm vật phẩm ID ${newId} vào shop!`);
+        return message.reply(`Đã thêm vật phẩm ID #${newId} vào shop chính.`);
     }
 
-    if (command === 'shop-remove') {
-        const itemId = parseInt(args[0]);
-        if (isNaN(itemId)) return message.reply('⚠️ Cú pháp: `.shop-remove <ID>`');
-        const index = guildConfig.shopItems.findIndex(i => i.id === itemId);
-        if (index === -1) return message.reply('⚠️ Không tìm thấy vật phẩm ID này!');
-        guildConfig.shopItems.splice(index, 1);
-        queueSave();
-        return message.reply(`✅ Đã xóa vật phẩm ID ${itemId} khỏi shop.`);
-    }
-
-    // --- 5. LỆNH CHỨC NĂNG CÁ NHÂN & KINH TẾ ---
-    if (command === 'chuyensinh' || command === 'prestige') {
-        const currentLevel = userData.level;
-        const currentPrestige = userData.prestige || 0;
-        const REQUIRED_LEVEL = 50; 
-
-        if (currentLevel < REQUIRED_LEVEL) {
-            return message.reply(`🚫 Bạn cần đạt **Cấp ${REQUIRED_LEVEL}** để chuyển sinh (Hiện tại: Cấp ${currentLevel}).`);
+    // --- 3. HỆ THỐNG CHỢ ĐEN / KÝ GỬI (MARKETPLACE) ---
+    if (command === 'market' || command === 'cho') {
+        const marketList = guildConfig.marketplace || [];
+        if (marketList.length === 0) {
+            return message.channel.send('Sàn Giao Dịch P2P: Hiện tại không có vật phẩm nào đang được người chơi rao bán.\n*Mẹo: Dùng `.market-rao <số thứ tự túi> <giá>` để đăng bán!*');
         }
 
-        userData.level = 0;
-        userData.xp = 0;
-        userData.prestige = currentPrestige + 1;
-        userData.coins = (userData.coins || 0) + 5000;
-
-        await checkAndAwardRoles(message.member, guildId, userData.level, userData.prestige);
-        queueSave();
-
-        const prestigeEmbed = new EmbedBuilder()
-            .setColor('#FF4500')
-            .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
-            .setTitle('🌟 CHUYỂN SINH THÀNH CÔNG!')
-            .setDescription(`Chúc mừng ${message.author} đã **Chuyển Sinh bậc ${userData.prestige}** thành công!\n\n🔄 Reset cấp độ về 0.\n🎁 Nhận ngay **+5000 Xu**!`)
+        let marketText = marketList.map(m => `**ID Chợ #${m.marketId}** : **${m.itemName}** (\`Loại: ${m.type}\`)\n   Giá: \`${m.price} SWC\` — Người bán: <@${m.sellerId}>`).join('\n\n');
+        
+        const marketEmbed = new EmbedBuilder()
+            .setColor('#00FFAA')
+            .setTitle(`SÀN KÝ GỬI VẬT PHẨM & DANH HIỆU (P2P)`)
+            .setDescription(marketText)
+            .setFooter({ text: 'Dùng .market-mua <ID chợ> để mua hoặc .market-huy <ID chợ> để thu hồi' })
             .setTimestamp();
 
-        return message.channel.send({ embeds: [prestigeEmbed] });
+        return message.channel.send({ embeds: [marketEmbed] });
     }
 
-    if (command === 'moruong') {
-        if ((userData.lootboxes || 0) <= 0) return message.reply('📦 Bạn không có Rương Báu nào! Hãy cày cấp để nhận rương.');
-        userData.lootboxes -= 1;
+    if (command === 'market-rao' || command === 'rao') {
+        const itemIndex = parseInt(args[0]) - 1;
+        const sellPrice = parseInt(args[1]);
+
+        if (isNaN(itemIndex) || isNaN(sellPrice) || sellPrice <= 0) {
+            return message.reply('Cú pháp: `.market-rao <số thứ tự trong túi> <giá SWC>`');
+        }
+
+        if (!userData.inventory || !userData.inventory[itemIndex]) {
+            return message.reply('Số thứ tự vật phẩm trong túi đồ không tồn tại! Gõ `.tui` để kiểm tra.');
+        }
+
+        const itemToSell = userData.inventory[itemIndex];
+        userData.inventory.splice(itemIndex, 1);
+
+        if (!guildConfig.marketIdCounter) guildConfig.marketIdCounter = 1;
+        const marketId = guildConfig.marketIdCounter++;
+
+        guildConfig.marketplace.push({
+            marketId: marketId,
+            sellerId: userId,
+            itemName: itemToSell.name,
+            price: sellPrice,
+            type: itemToSell.type,
+            title: itemToSell.title || null
+        });
+
+        queueSave();
+        return message.reply(`Bạn đã ký gửi thành công **"${itemToSell.name}"** lên chợ với giá **${sellPrice} SWC** (Mã giao dịch chợ: **#${marketId}**)!`);
+    }
+
+    if (command === 'market-mua' || command === 'muacho') {
+        const marketId = parseInt(args[0]);
+        if (isNaN(marketId)) return message.reply('Cú pháp: `.market-mua <ID chợ>`');
+
+        const marketIndex = guildConfig.marketplace.findIndex(m => m.marketId === marketId);
+        if (marketIndex === -1) return message.reply(`Không tìm thấy mã chợ **#${marketId}** hoặc đã có người mua mất rồi!`);
+
+        const listing = guildConfig.marketplace[marketIndex];
+        if (listing.sellerId === userId) return message.reply('Bạn không thể tự mua vật phẩm do chính mình rao bán!');
+        if ((userData.coins || 0) < listing.price) return message.reply(`Bạn không đủ SwanCoin! (Cần: ${listing.price} SWC, Bạn có: ${userData.coins || 0} SWC).`);
+
+        userData.coins -= listing.price;
+        initUser(guildId, listing.sellerId);
+        memoryDb[guildId].users[listing.sellerId].coins = (memoryDb[guildId].users[listing.sellerId].coins || 0) + listing.price;
+
+        userData.inventory.push({
+            name: listing.itemName,
+            price: listing.price,
+            type: listing.type,
+            title: listing.title || null
+        });
+
+        guildConfig.marketplace.splice(marketIndex, 1);
+        queueSave();
+
+        return message.reply(`Chúc mừng! Bạn đã mua thành công **"${listing.itemName}"** từ chợ với giá **${listing.price} SWC**.`);
+    }
+
+    if (command === 'market-huy' || command === 'huucho') {
+        const marketId = parseInt(args[0]);
+        if (isNaN(marketId)) return message.reply('Cú pháp: `.market-huy <ID chợ>`');
+
+        const marketIndex = guildConfig.marketplace.findIndex(m => m.marketId === marketId);
+        if (marketIndex === -1) return message.reply(`Không tìm thấy mã giao dịch chợ **#${marketId}**!`);
+
+        const listing = guildConfig.marketplace[marketIndex];
+        if (listing.sellerId !== userId && !isBotAdmin) return message.reply('Đây không phải vật phẩm do bạn rao bán!');
+
+        initUser(guildId, listing.sellerId);
+        memoryDb[guildId].users[listing.sellerId].inventory.push({
+            name: listing.itemName,
+            price: listing.price,
+            type: listing.type,
+            title: listing.title || null
+        });
+
+        guildConfig.marketplace.splice(marketIndex, 1);
+        queueSave();
+
+        return message.reply(`Đã thu hồi thành công **"${listing.itemName}"** về lại túi đồ cá nhân.`);
+    }
+
+    // --- 4. CỬA HÀNG CHÍNH HÃNG DẠNG ẢNH CANVAS ---
+    if (command === 'shop' || command === 'cuahang') {
+        try {
+            const currentShop = guildConfig.shopItems || [];
+            const canvas = Canvas.createCanvas(900, 600);
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#0f1012';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 900, 600, 24);
+            ctx.fill();
+
+            const borderGrad = ctx.createLinearGradient(0, 0, 900, 600);
+            borderGrad.addColorStop(0, '#FFD700');
+            borderGrad.addColorStop(0.5, '#FF4500');
+            borderGrad.addColorStop(1, '#00ffcc');
+            ctx.strokeStyle = borderGrad;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 34px sans-serif';
+            ctx.fillText(`Cửa Hàng Chính Hãng`, 40, 60);
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Số Dư: ${userData.coins || 0} SWC`, 860, 55);
+            ctx.textAlign = 'left';
+
+            ctx.strokeStyle = '#22252a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, 85);
+            ctx.lineTo(860, 85);
+            ctx.stroke();
+
+            if (currentShop.length === 0) {
+                ctx.fillStyle = '#8a8f9d';
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Cửa hàng hiện đang trống!', 450, 320);
+            } else {
+                let startY = 110;
+                const maxToShow = Math.min(currentShop.length, 6);
+
+                for (let i = 0; i < maxToShow; i++) {
+                    const item = currentShop[i];
+
+                    ctx.fillStyle = '#1b1d22';
+                    ctx.beginPath();
+                    ctx.roundRect(40, startY, 820, 60, 12);
+                    ctx.fill();
+
+                    ctx.strokeStyle = item.type === 'title' ? '#ff007f' : '#FFD700';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillText(`${i + 1}.`, 65, startY + 38);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillText(item.name, 115, startY + 38);
+                    
+                    ctx.fillStyle = '#8a8f9d';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText(`(ID: #${item.id})`, 115, startY + 54);
+
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.font = '16px sans-serif';
+                    ctx.fillText(`Kho: ${item.stock}`, 520, startY + 38);
+
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = 'bold 22px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`${item.price} SWC`, 830, startY + 38);
+                    ctx.textAlign = 'left';
+
+                    startY += 72;
+                }
+            }
+
+            ctx.fillStyle = '#8a8f9d';
+            ctx.font = '15px sans-serif';
+            ctx.fillText('Dùng .mua <ID> để mua vật phẩm hoặc .market để xem chợ người chơi.', 40, 575);
+
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'shop_market.png' });
+            return message.channel.send({ files: [attachment] });
+
+        } catch (error) {
+            console.error('Lỗi tạo ảnh shop:', error);
+            const currentShop = guildConfig.shopItems;
+            let shopText = currentShop.map((i, index) => `**${index + 1}.** [ID: #${i.id}] **${i.name}** — Giá: \`${i.price} SWC\` — Kho: \`${i.stock}\``).join('\n');
+            const embed = new EmbedBuilder().setColor('#FFD700').setTitle('Cửa Hàng Chính Hãng Server').setDescription(shopText || 'Trống');
+            return message.channel.send({ embeds: [embed] });
+        }
+    }
+
+    if (command === 'mua') {
+        const itemId = parseInt(args[0]);
+        const item = guildConfig.shopItems.find(i => i.id === itemId);
+        if (!item) return message.reply('Vật phẩm không tồn tại trong shop chính!');
+        if (item.stock <= 0) return message.reply('Sản phẩm này đã tạm hết hàng!');
+        if ((userData.coins || 0) < item.price) return message.reply('Không đủ SwanCoin (SWC)!');
+
+        if (item.type === 'title' && userData.unlockedTitles.includes(item.title)) {
+            return message.reply('Bạn đã sở hữu danh hiệu này rồi!');
+        }
+
+        userData.coins -= item.price;
+        item.stock = Math.max(0, item.stock - 1);
+
+        userData.inventory.push({
+            name: item.name,
+            price: item.price,
+            type: item.type,
+            title: item.title || null
+        });
+        queueSave();
+
+        return message.reply(`Đã mua thành công **${item.name}**! Đã chuyển vào túi đồ (\`.tui\`).`);
+    }
+
+    // --- 5. CÁC LỆNH KHÁC (DAILY, PAY, CHUYỂN SINH, TÚI, PROFILE, BXH) ---
+    if (command === 'daily') {
+        const now = Date.now();
+        if (now - userData.lastDaily < 86400000) return message.reply('Bạn đã điểm danh hôm nay rồi!');
+        userData.lastDaily = now;
+        userData.coins = (userData.coins || 0) + 100;
+        userData.xp += 50;
+        
+        let xpNeeded = getXpForNextLevel(userData.level);
+        while (userData.xp >= xpNeeded) {
+            userData.xp -= xpNeeded;
+            userData.level += 1;
+            if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
+            checkLevelTitles(userData);
+            xpNeeded = getXpForNextLevel(userData.level);
+        }
+        queueSave();
+        return message.reply('Điểm danh thành công: **+100 SWC** & **+50 EXP**.');
+    }
+
+    if (command === 'tien' || command === 'vi') {
+        return message.reply(`Số dư ví: **${userData.coins || 0} SwanCoin (SWC)** | Hộp Quà: **${userData.giftboxes || 0}**.`);
+    }
+
+    if (command === 'pay' || command === 'chuyen') {
+        const targetUser = message.mentions.users.first();
+        const amount = parseInt(args[1]);
+
+        if (!targetUser || isNaN(amount) || amount <= 0) {
+            return message.reply('Cú pháp: `.pay @User <số tiền>` hoặc `.chuyen @User <số tiền>`');
+        }
+
+        if (targetUser.bot) {
+            return message.reply('Bạn không thể chuyển SwanCoin cho bot được!');
+        }
+
+        if (targetUser.id === userId) {
+            return message.reply('Bạn không thể tự chuyển SwanCoin cho chính mình!');
+        }
+
+        if ((userData.coins || 0) < amount) {
+            return message.reply(`Bạn không đủ số dư để chuyển! Bạn đang có **${userData.coins || 0} SWC**.`);
+        }
+
+        userData.coins -= amount;
+        initUser(guildId, targetUser.id);
+        memoryDb[guildId].users[targetUser.id].coins = (memoryDb[guildId].users[targetUser.id].coins || 0) + amount;
+        queueSave();
+
+        return message.reply(`Đã chuyển thành công **${amount} SWC** cho ${targetUser} (${targetUser.tag})!`);
+    }
+
+    if (command === 'chuyensinh' || command === 'cs') {
+        const REQUIRED_LEVEL = 100;
+        const REQUIRED_COINS = 5000;
+
+        if (userData.level < REQUIRED_LEVEL) {
+            return message.reply(`Bạn chưa đủ điều kiện chuyển sinh! Cần đạt **Cấp ${REQUIRED_LEVEL}** (Bạn đang cấp ${userData.level}).`);
+        }
+
+        if ((userData.coins || 0) < REQUIRED_COINS) {
+            return message.reply(`Bạn không đủ phí chuyển sinh! Cần **${REQUIRED_COINS} SWC** (Bạn đang có ${userData.coins || 0} SWC).`);
+        }
+
+        userData.coins -= REQUIRED_COINS;
+        userData.level = 0;
+        userData.xp = 0;
+        userData.prestige = (userData.prestige || 0) + 1;
+
+        const prestigeTitle = `[Chuyển Sinh Cấp ${userData.prestige}]`;
+        if (!userData.unlockedTitles.includes(prestigeTitle)) {
+            userData.unlockedTitles.push(prestigeTitle);
+        }
+        userData.title = prestigeTitle;
+
+        queueSave();
+
+        const csEmbed = new EmbedBuilder()
+            .setColor('#FF4500')
+            .setTitle('CHUYỂN SINH THÀNH CÔNG!')
+            .setDescription(`🎉 Chúc mừng ${message.author} đã vượt qua giới hạn và **Chuyển Sinh thành công lần thứ [${userData.prestige}]**!\n\n` +
+                            `• **Trạng thái:** Đã reset về Cấp 0.\n` +
+                            `• **Nhận được:** Danh hiệu độc quyền \`${prestigeTitle}\`.\n` +
+                            `• **Ưu đãi:** Tên bạn giờ đây sẽ đứng đầu bảng xếp hạng Prestige!`)
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [csEmbed] });
+    }
+
+    if (command === 'mohopqua') {
+        if ((userData.giftboxes || 0) <= 0) return message.reply('Bạn không có Hộp Quà nào!');
+        userData.giftboxes -= 1;
 
         const rewardTypes = ['coins', 'xp', 'title'];
         const picked = rewardTypes[Math.floor(Math.random() * rewardTypes.length)];
         let rewardText = '';
 
         if (picked === 'coins') {
-            const rewardCoins = Math.floor(Math.random() * 1000) + 500;
+            const rewardCoins = Math.floor(Math.random() * 500) + 200;
             userData.coins += rewardCoins;
-            rewardText = `💰 **+${rewardCoins} Xu**`;
+            rewardText = `**+${rewardCoins} SWC**`;
         } else if (picked === 'xp') {
-            const rewardXp = Math.floor(Math.random() * 500) + 200;
+            const rewardXp = Math.floor(Math.random() * 300) + 100;
             userData.xp += rewardXp;
-            rewardText = `⚡ **+${rewardXp} EXP**`;
+            
+            let xpNeeded = getXpForNextLevel(userData.level);
+            while (userData.xp >= xpNeeded) {
+                userData.xp -= xpNeeded;
+                userData.level += 1;
+                if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
+                checkLevelTitles(userData);
+                xpNeeded = getXpForNextLevel(userData.level);
+            }
+            rewardText = `**+${rewardXp} EXP**`;
         } else {
-            const specialTitle = '🌟 Thần Thánh Chat';
-            userData.title = specialTitle;
+            const specialTitle = 'Thần Thánh Chat';
             if (!userData.unlockedTitles.includes(specialTitle)) userData.unlockedTitles.push(specialTitle);
-            rewardText = `🏷️ Danh hiệu độc quyền: \`${specialTitle}\``;
+            userData.title = specialTitle;
+            rewardText = `Danh hiệu: \`${specialTitle}\``;
         }
 
         queueSave();
-        return message.reply(`🎁 Mở Rương Báu nhận được: ${rewardText}! (Còn lại: ${userData.lootboxes} rương)`);
+        return message.reply(`Mở Hộp Quà nhận được: ${rewardText}! (Còn lại: ${userData.giftboxes} hộp quà)`);
     }
 
-    if (command === 'shop') {
-        const currentShop = guildConfig.shopItems;
-        let shopText = currentShop.map(i => `**ID ${i.id}**:${i.name} — Giá: \`${i.price} Xu\``).join('\n');
-        const embed = new EmbedBuilder().setColor('#FFD700').setTitle('🛒 Cửa Hàng Server').setDescription(shopText || 'Trống').setFooter({ text: 'Dùng .mua <ID> để mua' });
-        return message.channel.send({ embeds: [embed] });
+    if (command === 'danhhieu' || command === 'title') {
+        checkLevelTitles(userData);
+        const action = args[0]?.toLowerCase();
+        const titleChoice = args.slice(1).join(' ');
+
+        if (action === 'chon' || action === 'set') {
+            if (!titleChoice) return message.reply('Cú pháp: `.danhhieu chon <tên danh hiệu>`');
+            const matchedTitle = userData.unlockedTitles.find(t => t.toLowerCase() === titleChoice.toLowerCase());
+            if (!matchedTitle) return message.reply(`Bạn chưa sở hữu danh hiệu **"${titleChoice}"** này!`);
+            userData.title = matchedTitle;
+            queueSave();
+            return message.reply(`Đã trang bị danh hiệu: **${matchedTitle}**!`);
+        }
+
+        let listText = userData.unlockedTitles.map(t => `${t === userData.title ? '**[Đang đeo]** ' : '• '}${t}`).join('\n');
+        const titleEmbed = new EmbedBuilder()
+            .setColor('#FFC0CB')
+            .setTitle(`Kho Danh Hiệu Của ${message.author.username}`)
+            .setDescription(`Danh hiệu hiện tại: **${userData.title || 'Chưa chọn'}**\n\n${listText}\n\n*Gõ \`.danhhieu chon <tên>\` để thay đổi!*`);
+        return message.channel.send({ embeds: [titleEmbed] });
     }
 
-    if (command === 'mua') {
-        const itemId = parseInt(args[0]);
-        const item = guildConfig.shopItems.find(i => i.id === itemId);
-        if (!item) return message.reply('⚠️ Vật phẩm không tồn tại!');
-        if ((userData.coins || 0) < item.price) return message.reply('🚫 Không đủ Xu!');
+    // --- 6. TÚI ĐỒ DẠNG ẢNH CANVAS ---
+    if (command === 'tui' || command === 'inventory') {
+        try {
+            const canvas = Canvas.createCanvas(900, 500);
+            const ctx = canvas.getContext('2d');
 
-        userData.coins -= item.price;
+            ctx.fillStyle = '#0f1012';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 900, 500, 24);
+            ctx.fill();
+
+            const borderGrad = ctx.createLinearGradient(0, 0, 900, 500);
+            borderGrad.addColorStop(0, '#f12711');
+            borderGrad.addColorStop(0.5, '#f5af19');
+            borderGrad.addColorStop(1, '#00ffcc');
+            ctx.strokeStyle = borderGrad;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px sans-serif';
+            ctx.fillText(`Túi Đồ Của ${message.author.username}`, 40, 55);
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Số Dư: ${userData.coins || 0} SWC`, 860, 55);
+            ctx.textAlign = 'left';
+
+            ctx.strokeStyle = '#22252a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, 80);
+            ctx.lineTo(860, 80);
+            ctx.stroke();
+
+            const items = userData.inventory || [];
+            if (items.length === 0) {
+                ctx.fillStyle = '#8a8f9d';
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Túi đồ của bạn đang trống!', 450, 280);
+            } else {
+                let startY = 110;
+                const maxItemsToShow = Math.min(items.length, 6);
+
+                for (let i = 0; i < maxItemsToShow; i++) {
+                    const item = items[i];
+
+                    ctx.fillStyle = '#1b1d22';
+                    ctx.beginPath();
+                    ctx.roundRect(40, startY, 820, 50, 12);
+                    ctx.fill();
+
+                    ctx.strokeStyle = item.type === 'title' ? '#ff007f' : '#00ffcc';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.fillText(`#${i + 1}`, 65, startY + 32);
+                    ctx.fillText(item.name, 130, startY + 32);
+
+                    ctx.fillStyle = '#a1a6b0';
+                    ctx.font = '16px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`[Loại: ${item.type}]`, 830, startY + 32);
+                    ctx.textAlign = 'left';
+
+                    startY += 62;
+                }
+            }
+
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '14px sans-serif';
+            ctx.fillText('Dùng .market-rao <số> <giá> để đăng bán lên chợ, hoặc .sd <số> để sử dụng.', 40, 475);
+
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'inventory.png' });
+            return message.channel.send({ files: [attachment] });
+
+        } catch (error) {
+            console.error('Lỗi tạo ảnh túi đồ:', error);
+            let invText = (userData.inventory || []).map((item, index) => `**[${index + 1}]** ${item.name}`).join('\n');
+            return message.reply(`Túi Đồ:\n${invText || 'Trống'}`);
+        }
+    }
+
+    if (command === 'sd' || command === 'sudung') {
+        const index = parseInt(args[0]) - 1;
+        if (isNaN(index) || !userData.inventory || !userData.inventory[index]) {
+            return message.reply('Cú pháp: `.sd <số thứ tự trong túi>`');
+        }
+
+        const item = userData.inventory[index];
         if (item.type === 'boost') {
             userData.personalBoostUntil = Date.now() + 3600000;
-            message.reply(`✅ Đã mua **${item.name}**! X2 EXP cá nhân trong 1 giờ.`);
+            userData.inventory.splice(index, 1);
+            message.reply(`Đã sử dụng **${item.name}** thành công! X2 EXP trong 1 giờ.`);
         } else if (item.type === 'title') {
-            userData.title = item.title;
             if (!userData.unlockedTitles.includes(item.title)) userData.unlockedTitles.push(item.title);
-            message.reply(`✅ Đã mua và kích hoạt danh hiệu **${item.title}**!`);
+            userData.title = item.title;
+            userData.inventory.splice(index, 1);
+            message.reply(`Đã trang bị danh hiệu: **${item.title}**!`);
+        } else {
+            message.reply('Vật phẩm này không thể sử dụng trực tiếp.');
         }
         queueSave();
         return;
     }
 
-    if (command === 'daily') {
-        const now = Date.now();
-        if (now - userData.lastDaily < 86400000) return message.reply('⏳ Điểm danh rồi! Quay lại vào ngày mai nhé.');
-        userData.lastDaily = now;
-        userData.coins = (userData.coins || 0) + 200;
-        userData.xp += 100;
-        queueSave();
-        return message.reply('🎁 Điểm danh thành công: **+200 Xu** & **+100 EXP**.');
-    }
-
-    if (command === 'tien' || command === 'vi') return message.reply(`💰 Số dư ví: **${userData.coins || 0} Xu** | 📦 Rương báu: **${userData.lootboxes || 0}**.`);
-
-    if (command === 'loimoi' || command === 'invites') {
-        const targetMember = message.mentions.members.first() || message.member;
-        initUser(guildId, targetMember.id);
-        const invData = memoryDb[guildId].users[targetMember.id].invites || { regular: 0, left: 0, fake: 0 };
-        return message.reply(`📊 Thống kê lời mời của **${targetMember.user.tag}**:\n• Đã mời thành công: **${invData.regular}** người`);
-    }
-
-    // --- 6. LỆNH RANK CARD (CANVAS) & BXH ---
+    // --- 7. PROFILE CANVAS (LỆNH .RANK / .CAP) ---
     if (command === 'cap' || command === 'rank' || command === 'profile' || command === 'thongtin') {
         const targetMember = message.mentions.members.first() || message.member;
         const targetUser = targetMember.user;
         initUser(guildId, targetUser.id);
         const uData = memoryDb[guildId].users[targetUser.id];
+        checkLevelTitles(uData);
 
         const allUsers = Object.entries(memoryDb[guildId].users || {})
             .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
@@ -658,15 +1045,20 @@ client.on('messageCreate', async (message) => {
         const requiredXp = getXpForNextLevel(uData.level);
 
         try {
-            const canvas = Canvas.createCanvas(930, 282);
+            const canvas = Canvas.createCanvas(930, 320);
             const ctx = canvas.getContext('2d');
 
-            ctx.fillStyle = '#2b2d31';
+            ctx.fillStyle = '#0f1012';
             ctx.beginPath();
-            ctx.roundRect(0, 0, 930, 282, 20);
+            ctx.roundRect(0, 0, 930, 320, 24);
             ctx.fill();
-            ctx.strokeStyle = '#5865F2';
-            ctx.lineWidth = 3;
+
+            const borderGrad = ctx.createLinearGradient(0, 0, 930, 320);
+            borderGrad.addColorStop(0, '#00ffcc');
+            borderGrad.addColorStop(0.5, '#7b2cbf');
+            borderGrad.addColorStop(1, '#ff007f');
+            ctx.strokeStyle = borderGrad;
+            ctx.lineWidth = 4;
             ctx.stroke();
 
             const avatarURL = targetUser.displayAvatarURL({ extension: 'png', size: 256 });
@@ -674,75 +1066,199 @@ client.on('messageCreate', async (message) => {
             
             ctx.save();
             ctx.beginPath();
-            ctx.arc(125, 141, 75, 0, Math.PI * 2, true);
+            ctx.arc(130, 160, 80, 0, Math.PI * 2, true);
             ctx.closePath();
             ctx.clip();
-            ctx.drawImage(avatar, 50, 66, 150, 150);
+            ctx.drawImage(avatar, 50, 80, 160, 160);
             ctx.restore();
 
-            ctx.strokeStyle = '#ffffff';
+            ctx.strokeStyle = '#00ffcc';
             ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.arc(125, 141, 77, 0, Math.PI * 2, true);
+            ctx.arc(130, 160, 82, 0, Math.PI * 2, true);
             ctx.stroke();
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 36px sans-serif';
-            ctx.fillText(targetUser.username, 230, 85);
+            ctx.font = 'bold 38px sans-serif';
+            ctx.fillText(targetUser.username, 245, 75);
 
-            ctx.fillStyle = '#b5bac1';
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillText(`Chuyển Sinh: [${uData.prestige || 0}]`, 245, 115);
+
+            ctx.fillStyle = '#a1a6b0';
             ctx.font = '20px sans-serif';
-            ctx.fillText(`Danh hiệu: ${uData.title || 'Chưa có'}`, 230, 120);
+            ctx.fillText(`Danh hiệu: ${uData.title || '[Em Bé Tập Lẫy]'}`, 245, 150);
 
-            ctx.fillStyle = '#80848e';
-            ctx.font = 'bold 26px sans-serif';
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = 'bold 30px sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(`RANK #${rank}`, 870, 75);
+            ctx.fillText(`LVL ${uData.level}`, 880, 75);
 
-            ctx.fillStyle = '#5865F2';
-            ctx.font = 'bold 36px sans-serif';
-            ctx.fillText(`LVL ${uData.level}`, 870, 115);
+            ctx.fillStyle = '#8a8f9d';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.fillText(`RANK #${rank}`, 880, 115);
             ctx.textAlign = 'left';
 
-            const barX = 230, barY = 175, barW = 640, barH = 35;
-            ctx.fillStyle = '#1e1f22';
+            const barX = 245, barY = 205, barW = 635, barH = 45;
+            ctx.fillStyle = '#1b1d22';
             ctx.beginPath();
-            ctx.roundRect(barX, barY, barW, barH, 10);
+            ctx.roundRect(barX, barY, barW, barH, 22);
             ctx.fill();
 
             let progress = requiredXp > 0 ? (uData.xp / requiredXp) : 0;
             if (progress > 1) progress = 1;
-            const progressW = Math.max(20, barW * progress);
+            const progressW = Math.max(40, barW * progress);
 
-            ctx.fillStyle = '#5865F2';
+            const barGradient = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+            barGradient.addColorStop(0, '#00ffcc');
+            barGradient.addColorStop(1, '#ff007f');
+
+            ctx.fillStyle = barGradient;
             ctx.beginPath();
-            ctx.roundRect(barX, barY, progressW, barH, 10);
+            ctx.roundRect(barX, barY, progressW, barH, 22);
             ctx.fill();
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 18px sans-serif';
-            ctx.fillText(`${uData.xp} / ${requiredXp} XP`, barX + 20, barY + 23);
+            ctx.font = 'bold 20px sans-serif';
+            ctx.fillText(`EXP: ${uData.xp} / ${requiredXp}`, barX + 25, barY + 29);
 
-            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'rank_card.png' });
+            ctx.fillStyle = '#d0d3dc';
+            ctx.font = '18px sans-serif';
+            ctx.fillText(`SWC: ${uData.coins || 0}   |   Hộp Quà: ${uData.giftboxes || 0}   |   Túi đồ: ${uData.inventory.length} món`, 245, 285);
+
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profile_card.png' });
             return message.channel.send({ files: [attachment] });
 
         } catch (error) {
-            console.error('Lỗi tạo ảnh rank card:', error);
-            return message.reply(`📊 **${targetUser.username}** | Cấp: **${uData.level}** | EXP: **${uData.xp}/${requiredXp}** | Rank: **#${rank}**`);
+            console.error('Lỗi tạo profile card:', error);
+            return message.reply(`**${targetUser.username}** | Cấp: **${uData.level}** | Rank: **#${rank}**`);
         }
     }
 
-    if (command === 'bxh') {
-        const users = memoryDb[guildId]?.users;
-        if (!users || !Object.keys(users).length) return message.channel.send('Chưa có dữ liệu bảng xếp hạng!');
-        const sorted = Object.entries(users)
-            .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
-            .sort((a, b) => b.prestige === a.prestige ? (b.level === a.level ? b.xp - a.xp : b.level - a.level) : b.prestige - a.prestige)
-            .slice(0, 10);
+    // --- 8. LỆNH BẢNG XẾP HẠNG CANVAS (.bxh) ---
+    if (command === 'bxh' || command === 'leaderboard') {
+        try {
+            const users = memoryDb[guildId]?.users;
+            if (!users || !Object.keys(users).length) {
+                return message.channel.send('Chưa có dữ liệu bảng xếp hạng trong server này!');
+            }
 
-        let text = sorted.map((u, i) => `**#${i + 1}** <@${u.id}> — Cấp ${u.level} (${u.xp} EXP)`).join('\n');
-        const embed = new EmbedBuilder().setColor('#FFD700').setTitle(`🏆 Bảng Xếp Hạng - ${message.guild.name}`).setDescription(text);
-        return message.channel.send({ embeds: [embed] });
+            const sorted = Object.entries(users)
+                .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
+                .sort((a, b) => b.prestige === a.prestige ? (b.level === a.level ? b.xp - a.xp : b.level - a.level) : b.prestige - a.prestige)
+                .slice(0, 10);
+
+            const canvas = Canvas.createCanvas(900, 750);
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#0f1012';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 900, 750, 24);
+            ctx.fill();
+
+            const borderGrad = ctx.createLinearGradient(0, 0, 900, 750);
+            borderGrad.addColorStop(0, '#FFD700');
+            borderGrad.addColorStop(0.5, '#FF4500');
+            borderGrad.addColorStop(1, '#00ffcc');
+            ctx.strokeStyle = borderGrad;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 34px sans-serif';
+            ctx.fillText(`Bảng Xếp Hạng Cấp Độ`, 40, 60);
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Server: ${message.guild.name}`, 860, 55);
+            ctx.textAlign = 'left';
+
+            ctx.strokeStyle = '#22252a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(40, 85);
+            ctx.lineTo(860, 85);
+            ctx.stroke();
+
+            let startY = 105;
+            const maxShow = Math.min(sorted.length, 8);
+
+            for (let i = 0; i < maxShow; i++) {
+                const u = sorted[i];
+                let member;
+                try {
+                    member = await message.guild.members.fetch(u.id);
+                } catch (e) {
+                    member = null;
+                }
+
+                const username = member ? member.user.username : `User ${u.id.slice(0, 5)}`;
+                const avatarURL = member ? member.user.displayAvatarURL({ extension: 'png', size: 128 }) : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+                ctx.fillStyle = '#1b1d22';
+                ctx.beginPath();
+                ctx.roundRect(40, startY, 820, 65, 12);
+                ctx.fill();
+
+                if (i === 0) ctx.strokeStyle = '#FFD700';
+                else if (i === 1) ctx.strokeStyle = '#C0C0C0';
+                else if (i === 2) ctx.strokeStyle = '#CD7F32';
+                else ctx.strokeStyle = '#2d323b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                try {
+                    const avatar = await Canvas.loadImage(avatarURL);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(77, startY + 32, 24, 0, Math.PI * 2, true);
+                    ctx.closePath();
+                    ctx.clip();
+                    ctx.drawImage(avatar, 53, startY + 8, 48, 48);
+                    ctx.restore();
+                } catch (err) {}
+
+                ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : (i === 2 ? '#CD7F32' : '#ffffff'));
+                ctx.font = 'bold 22px sans-serif';
+                ctx.fillText(`#${i + 1}`, 120, startY + 41);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 20px sans-serif';
+                ctx.fillText(username, 185, startY + 41);
+
+                ctx.fillStyle = '#a1a6b0';
+                ctx.font = '15px sans-serif';
+                ctx.fillText(`Chuyển Sinh: [${u.prestige}] | EXP: ${u.xp}`, 480, startY + 41);
+
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = 'bold 22px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`LVL ${u.level}`, 835, startY + 41);
+                ctx.textAlign = 'left';
+
+                startY += 75;
+            }
+
+            ctx.fillStyle = '#8a8f9d';
+            ctx.font = '14px sans-serif';
+            ctx.fillText('Hệ thống tự động cập nhật liên tục theo hoạt động chat và voice của thành viên.', 40, 725);
+
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'leaderboard.png' });
+            return message.channel.send({ files: [attachment] });
+
+        } catch (error) {
+            console.error('Lỗi tạo ảnh bxh:', error);
+            const users = memoryDb[guildId]?.users;
+            const sorted = Object.entries(users)
+                .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
+                .sort((a, b) => b.prestige === a.prestige ? (b.level === a.level ? b.xp - a.xp : b.level - a.level) : b.prestige - a.prestige)
+                .slice(0, 10);
+            let text = sorted.map((u, i) => `**#${i + 1}** <@${u.id}> — Cấp ${u.level} (${u.xp} EXP) [CS: ${u.prestige}]`).join('\n');
+            const embed = new EmbedBuilder().setColor('#FFD700').setTitle(`Bảng Xếp Hạng - ${message.guild.name}`).setDescription(text);
+            return message.channel.send({ embeds: [embed] });
+        }
     }
 });
 
