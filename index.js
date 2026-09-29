@@ -305,6 +305,7 @@ client.on('messageCreate', async (message) => {
                            '• `.timeout @User <phút>` — Khóa chat thành viên.\n' +
                            '• `.untimeout @User` — Mở khóa chat thành viên.\n' +
                            '• `.clear <1-100>` — Xóa hàng loạt tin nhắn.\n' +
+                           '• `.setlog #kenh` — Cài đặt kênh thông báo khi lên cấp.\n' +
                            '• `.staff-add @User` — Thêm staff mới.\n' +
                            '• `.staff-del @User` — Xóa quyền staff.\n' +
                            '• `.shop-add Tên | Giá | Kho | Type` — Thêm đồ vào shop.\n' +
@@ -365,6 +366,15 @@ client.on('messageCreate', async (message) => {
         const msg = await message.channel.send(`Đã xóa ${fetched ? fetched.size - 1 : 0} tin nhắn.`);
         setTimeout(() => msg.delete().catch(() => {}), 3000);
         return;
+    }
+
+    // --- LỆNH SET KÊNH THÔNG BÁO LEVEL ---
+    if (command === 'setlog' || command === 'setlevelchannel') {
+        if (!isBotAdmin) return message.reply('Chỉ Admin bot mới có quyền cài đặt kênh thông báo level!');
+        const targetChannel = message.mentions.channels.first() || message.channel;
+        guildConfig.logChannel = targetChannel.id;
+        queueSave();
+        return message.reply(`Đã thiết lập kênh thông báo lên cấp thành công tại ${targetChannel}!`);
     }
 
     // --- QUẢN LÝ STAFF ---
@@ -771,7 +781,7 @@ client.on('messageCreate', async (message) => {
         return message.reply(`Đã mua thành công **${item.name}**! Đã chuyển vào túi đồ (\`.tui\`).`);
     }
 
-    // --- 5. CÁC LỆNH KHÁC (DAILY, PAY, CHUYỂN SINH, TÚI, PROFILE, BXH) ---
+    // --- 5. CÁC LỆNH KHÁC (DAILY, PAY, CHUYỂN SINH ĐÃ ĐỔI LÊN 100, TÚI, PROFILE, BXH) ---
     if (command === 'daily') {
         const now = Date.now();
         if (now - userData.lastDaily < 86400000) return message.reply('Bạn đã điểm danh hôm nay rồi!');
@@ -824,7 +834,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'chuyensinh' || command === 'cs') {
-        const REQUIRED_LEVEL = 100;
+        const REQUIRED_LEVEL = 100; // Đã đổi thành cấp 100 theo yêu cầu của bạn!
         const REQUIRED_COINS = 5000;
 
         if (userData.level < REQUIRED_LEVEL) {
@@ -851,7 +861,7 @@ client.on('messageCreate', async (message) => {
         const csEmbed = new EmbedBuilder()
             .setColor('#FF4500')
             .setTitle('CHUYỂN SINH THÀNH CÔNG!')
-            .setDescription(`🎉 Chúc mừng ${message.author} đã vượt qua giới hạn và **Chuyển Sinh thành công lần thứ [${userData.prestige}]**!\n\n` +
+            .setDescription(`🎉 Chúc mừng ${message.author} đã vượt qua giới hạn cấp 100 và **Chuyển Sinh thành công lần thứ [${userData.prestige}]**!\n\n` +
                             `• **Trạng thái:** Đã reset về Cấp 0.\n` +
                             `• **Nhận được:** Danh hiệu độc quyền \`${prestigeTitle}\`.\n` +
                             `• **Ưu đãi:** Tên bạn giờ đây sẽ đứng đầu bảng xếp hạng Prestige!`)
