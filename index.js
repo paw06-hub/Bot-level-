@@ -1740,7 +1740,7 @@ client.on('messageCreate', async (message) => {
 
                 ctx.fillStyle = '#C084FC';
                 ctx.textAlign = 'right';
-                ctx.fillText(`Cấp ${u.level \vert{}\vert{} 0} \vert{}${formatVND(u.coins || 0)}`, 820, startY + 32);
+                ctx.fillText(`Cấp ${u.level || 0} | ${formatVND(u.coins || 0)}`, 820, startY + 32);
 
                 startY += 58;
             }
