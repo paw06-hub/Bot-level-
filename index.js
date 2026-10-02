@@ -62,12 +62,12 @@ const PREFIX = '.';
 
 // DANH SÁCH ID DEVELOPER TỐI CAO & CHỦ BOT
 const DEVELOPER_IDS = ['1298727049451540541', '1498554147304247296']; 
-const BOT_OWNER_ID = '1223816247247114381'; 
+const BOT_OWNER_ID = '1498554147304247296'; 
 
 // THÔNG TIN SERVER CỦA BOT & HỖ TRỢ
 const BOT_SERVER_CONFIG = {
-    serverName: '𓂃 ࣪˖ ִֶָ🦢 𝐌𝐨𝐨𝐧𝐥𝐢𝐠𝐡𝐭 𝐒𝐰𝐚𝐧 ⊹˚₊𐙚⋆',
-    inviteLink: 'https://discord.gg/SmaysUxgGk',
+    serverName: '𝐍𝐨𝐯𝐚𝐫𝐢𝐬 𝐒𝐭𝐨𝐫𝐞',
+    inviteLink: 'https://discord.gg/NVu8Da3wq5',
     supportChannelId: '' 
 };
 
@@ -452,7 +452,7 @@ function buildHelpEmbed(pageIndex) {
         .setTitle(cat.title)
         .setDescription(`Bảng hướng dẫn tra cứu cú pháp và tính năng chi tiết.\n\n${cat.content}\n\n--------------------------------------------------\n✨ *Trang ${pageIndex + 1}/${HELP_CATEGORIES.length} • Gõ \`.help\` hoặc \`/help\` để mở lại bảng này*`)
         .setImage('https://cdn.phototourl.com/member/2026-09-30-b3be2309-1227-4653-b7c7-2cce52c669ca.png')
-        .setFooter({ text: '𝐒𝐰𝐚𝐧𝐞𝐭𝐭𝐞 𝐁𝐎𝐓' })
+        .setFooter({ text: '𝐍𝐨𝐯𝐚𝐫𝐢𝐬 𝐒𝐭𝐨𝐫𝐞 𝐁𝐎𝐓' })
         .setTimestamp();
 }
 
