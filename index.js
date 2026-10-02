@@ -1770,7 +1770,7 @@ client.on('messageCreate', async (message) => {
 
             ctx.fillStyle = '#FFFFFF'; 
             ctx.font = 'bold 32px sans-serif';
-            ctx.fillText(`CỬA HÀNG VẬT PHẨM & THỨC ĂN PET`, 65, 55);
+            ctx.fillText(`CỬA HÀNG NOVARIS STORE`, 65, 55);
 
             ctx.fillStyle = '#FACC15'; 
             ctx.font = 'bold 20px sans-serif'; 
