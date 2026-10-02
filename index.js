@@ -1714,19 +1714,21 @@ client.on('messageCreate', async (message) => {
     }
 
     // --- LỆNH .bxh (ĐÃ SỬA LỖI & TÍCH HỢP) ---
-    if (command === 'bxh' || command === 'leaderboard') {
+        if (command === 'bxh' || command === 'leaderboard') {
         try {
             initGuild(guildId);
             const usersObj = memoryDb[guildId].users || {};
             
+            // Sắp xếp người chơi theo Cấp độ (level) giảm dần, sau đó đến EXP
             const sortedUsers = Object.entries(usersObj)
                 .map(([id, data]) => ({ id, ...data }))
                 .sort((a, b) => (b.level - a.level) || (b.xp - a.xp))
-                .slice(0, 10);
+                .slice(0, 10); // Lấy top 10
 
             const canvas = Canvas.createCanvas(900, 700);
             const ctx = canvas.getContext('2d');
 
+            // Nền gradient bắt mắt
             const bgGrad = ctx.createLinearGradient(0, 0, 900, 700);
             bgGrad.addColorStop(0, '#1E1B2E'); 
             bgGrad.addColorStop(1, '#0F0E17');
@@ -1735,6 +1737,7 @@ client.on('messageCreate', async (message) => {
             ctx.roundRect(0, 0, 900, 700, 28); 
             ctx.fill();
 
+            // Tiêu đề bảng xếp hạng
             ctx.fillStyle = '#FFFFFF'; 
             ctx.font = 'bold 32px sans-serif';
             ctx.textAlign = 'center';
@@ -1749,23 +1752,27 @@ client.on('messageCreate', async (message) => {
                     memberTag = fetchedMember.user.username;
                 } catch (e) {}
 
+                // Khung nền từng hàng
                 ctx.fillStyle = i === 0 ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)';
                 ctx.beginPath(); 
                 ctx.roundRect(50, startY, 800, 50, 14); 
                 ctx.fill();
 
+                // Thứ hạng
                 ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : (i === 2 ? '#CD7F32' : '#E2E8F0'));
                 ctx.font = 'bold 20px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.fillText(`#${i + 1}`, 75, startY + 32);
 
+                // Tên người chơi
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(memberTag.length > 20 ? memberTag.substring(0, 20) + '...' : memberTag, 135, startY + 32);
 
+                // Cấp độ & Tiền tệ
                 ctx.fillStyle = '#C084FC';
                 ctx.textAlign = 'right';
-                ctx.fillText(`Cấp ${u.level \vert{}\vert{} 0} \vert{}${u.coins || 0} SWC`, 820, startY + 32);
+                ctx.fillText(`Cấp ${u.level || 0} | ${u.coins || 0} SWC`, 820, startY + 32);
 
                 startY += 58;
             }
