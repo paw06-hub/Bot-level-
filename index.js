@@ -79,7 +79,6 @@ const voiceStates = new Map();
 const guildInvites = new Map();
 
 // --- HỆ THỐNG 100 DANH HIỆU TIẾN HÓA THEO CẤP ĐỘ ---
-// --- HỆ THỐNG 100 DANH HIỆU PHONG CÁCH TÂN THỦ ---
 const LEVEL_TITLES = {
     1: "Tân Thủ Mới Nhập Môn", 2: "Người Lữ Hành Nhỏ", 3: "Học Viên Tập Sự", 4: "Kẻ Săn Đêm Nhỏ", 5: "Người Thám Hiểm Lớn",
     6: "Tập Sự Đột Phá", 7: "Tay Mơ Tập Sự", 8: "Hiệp Sĩ Tập Sự", 9: "Pháp Sư Tập Sự", 10: "Chiến Binh Sơ Cấp",
