@@ -21,6 +21,12 @@ const fsPromises = require('fs').promises;
 const path = require('path');
 const express = require('express');
 
+// --- Hỗ trợ hàm format tiền VNĐ ---
+function formatVND(amount) {
+    if (isNaN(amount)) return '0 VNĐ';
+    return Number(amount).toLocaleString('vi-VN') + ' VNĐ';
+}
+
 // --- Hỗ trợ roundRect cho môi trường canvas cũ ---
 if (Canvas.CanvasRenderingContext2D && !Canvas.CanvasRenderingContext2D.prototype.roundRect) {
     Canvas.CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
@@ -78,7 +84,7 @@ const cooldowns = new Map();
 const voiceStates = new Map();
 const guildInvites = new Map();
 
-// --- HỆ THỐNG 100 DANH HIỆU TÂN THỦ ---
+// --- HỆ THỐNG 100 DANH HIỆU TIẾN HÓA THEO CẤP ĐỘ ---
 const LEVEL_TITLES = {
     1: "Tân Thủ Mới Nhập Môn", 2: "Người Lữ Hành Nhỏ", 3: "Học Viên Tập Sự", 4: "Kẻ Săn Đêm Nhỏ", 5: "Người Thám Hiểm Lớn",
     6: "Tập Sự Đột Phá", 7: "Tay Mơ Tập Sự", 8: "Hiệp Sĩ Tập Sự", 9: "Pháp Sư Tập Sự", 10: "Chiến Binh Sơ Cấp",
@@ -113,9 +119,37 @@ const CULTIVATION_REALMS = [
     { level: 6, name: "Luyện Hư Kỳ", nameMa: "Luyện Ma Kỳ", requiredTuVi: 20000 },
     { level: 7, name: "Hợp Thể Kỳ", nameMa: "Phệ Thể Kỳ", requiredTuVi: 35000 },
     { level: 8, name: "Đại Thừa Kỳ", nameMa: "Ma Thừa Kỳ", requiredTuVi: 60000 },
-    { level: 9, name: "Độ Kiếp Thánh Nhân", nameMa: "Diệt Thế Ma Tôn", requiredTuVi: 100000 }
+    { level: 9, name: "Độ Kiếp Thánh Nhân", nameMa: "Diệt Thế Ma Tôn", requiredTuVi: 100000 },
+    { level: 10, name: "Chân Tiên Kỳ", nameMa: "Chân Ma Kỳ", requiredTuVi: 150000 },
+    { level: 11, name: "Huyền Tiên Kỳ", nameMa: "U Minh Tiên", requiredTuVi: 212500 },
+    { level: 12, name: "Kim Tiên Kỳ", nameMa: "Sát Lục Kim Tiên", requiredTuVi: 290625 },
+    { level: 13, name: "Thái Ất Chân Tiên", nameMa: "Thái Ất Ma Tiên", requiredTuVi: 388281 },
+    { level: 14, name: "Thái Ất Huyền Tiên", nameMa: "Huyết Hải Huyền Tiên", requiredTuVi: 510351 },
+    { level: 15, name: "Thái Ất Kim Tiên", nameMa: "Vạn Tượng Ma Tôn", requiredTuVi: 662938 },
+    { level: 16, name: "Đại Lục Chân Tiên", nameMa: "Cửu U Ma Quân", requiredTuVi: 853671 },
+    { level: 17, name: "Đại La Kim Tiên", nameMa: "Đại La Sát Tinh", requiredTuVi: 1092087 },
+    { level: 18, name: "Hỗn Nguyên Kim Tiên", nameMa: "Hỗn Nguyên Ma Tổ", requiredTuVi: 1390107 },
+    { level: 19, name: "Tiên Vương Kỳ", nameMa: "Ma Vương Kỳ", requiredTuVi: 1762632 },
+    { level: 20, name: "Tiên Tôn Kỳ", nameMa: "Ma Tôn Kỳ", requiredTuVi: 2228288 },
+    { level: 21, name: "Tiên Đế Kỳ", nameMa: "Ma Đế Kỳ", requiredTuVi: 2810358 },
+    { level: 22, name: "Chuẩn Thánh Kỳ", nameMa: "Chuẩn Ma Thánh", requiredTuVi: 3537945 },
+    { level: 23, name: "Á Thánh Kỳ", nameMa: "U Minh Á Thánh", requiredTuVi: 4447428 },
+    { level: 24, name: "Hỗn Nguyên Đại La Kim Tiên", nameMa: "Hỗn Nguyên Phệ Thiên Ma", requiredTuVi: 5584281 },
+    { level: 25, name: "Đạo Cảnh Nhập Môn", nameMa: "Ma Đạo Nhập Môn", requiredTuVi: 7005347 },
+    { level: 26, name: "Đạo Cảnh Tiểu Thành", nameMa: "Ma Đạo Tiểu Thành", requiredTuVi: 8781679 },
+    { level: 27, name: "Đạo Cảnh Đại Thành", nameMa: "Ma Đạo Đại Thành", requiredTuVi: 11002094 },
+    { level: 28, name: "Chân Ngã Cảnh", nameMa: "Ma Ngã Cảnh", requiredTuVi: 13777612 },
+    { level: 29, name: "Tự Tại Cảnh", nameMa: "Cuồng Ma Tự Tại", requiredTuVi: 17247009 },
+    { level: 30, name: "Vĩnh Hằng Cảnh", nameMa: "Hắc Ám Vĩnh Hằng", requiredTuVi: 21583755 },
+    { level: 31, name: "Bất Hủ Cảnh", nameMa: "Ma Hồn Bất Hủ", requiredTuVi: 27004687 },
+    { level: 32, name: "Hỗn Độn Cảnh", nameMa: "Hỗn Độn Ma Uy", requiredTuVi: 33780852 },
+    { level: 33, name: "Hư Vô Cảnh", nameMa: "Diệt Thế Hư Vô", requiredTuVi: 42251058 },
+    { level: 34, name: "Sáng Thế Cảnh", nameMa: "Diệt Thế Sáng Thế", requiredTuVi: 52838815 },
+    { level: 35, name: "Đạo Nguyên Cảnh", nameMa: "Ma Nguyên Cảnh", requiredTuVi: 66073511 },
+    { level: 36, name: "Chí Tôn Vô Thượng", nameMa: "Vô Thượng Ma Chủ", requiredTuVi: 82616881 }
 ];
 
+// --- HỆ THỐNG ĐỘ HIẾM & DANH SÁCH PET ---
 const PET_RARITIES = {
     COMMON: { name: 'Thường', color: '#B0C4DE', rate: 0.50, multiplier: 1 },
     RARE: { name: 'Hiếm', color: '#1E90FF', rate: 0.30, multiplier: 1.2 },
@@ -138,19 +172,34 @@ function getRandomPetByGacha() {
     const rand = Math.random();
     let cumulative = 0;
     let selectedRarity = 'COMMON';
+    
     for (const [key, val] of Object.entries(PET_RARITIES)) {
         cumulative += val.rate;
-        if (rand <= cumulative) { selectedRarity = key; break; }
+        if (rand <= cumulative) {
+            selectedRarity = key;
+            break;
+        }
     }
-    const availableSpecies = PET_SPECIES.filter(p => p.baseRarity === selectedRarity || p.baseRarity === 'COMMON');
+
+    const availableSpecies = PET_SPECIES.filter(p => {
+        if (selectedRarity === 'MYTHIC') return p.baseRarity === 'MYTHIC' || p.baseRarity === 'LEGENDARY';
+        if (selectedRarity === 'LEGENDARY') return p.baseRarity === 'LEGENDARY' || p.baseRarity === 'EPIC';
+        return p.baseRarity === selectedRarity || p.baseRarity === 'COMMON';
+    });
+
     const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)] || PET_SPECIES[0];
+    
     return {
         id: `pet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         name: `${species.icon}${species.name}`,
         speciesName: species.name,
         icon: species.icon,
         rarity: selectedRarity,
-        level: 1, exp: 0, hunger: 100, affection: 50, createdAt: Date.now()
+        level: 1,
+        exp: 0,
+        hunger: 100,
+        affection: 50,
+        createdAt: Date.now()
     };
 }
 
@@ -162,22 +211,30 @@ function getTitleForLevel(level) {
 function checkLevelTitles(userData) {
     if (!userData.unlockedTitles) userData.unlockedTitles = [LEVEL_TITLES[1]];
     let newlyUnlocked = [];
+    
     const maxCheck = Math.min(userData.level, 100);
     for (let i = 1; i <= maxCheck; i++) {
-        if (LEVEL_TITLES[i] && !userData.unlockedTitles.includes(LEVEL_TITLES[i])) {
-            userData.unlockedTitles.push(LEVEL_TITLES[i]);
-            newlyUnlocked.push(LEVEL_TITLES[i]);
+        if (LEVEL_TITLES[i]) {
+            const titleName = LEVEL_TITLES[i];
+            if (!userData.unlockedTitles.includes(titleName)) {
+                userData.unlockedTitles.push(titleName);
+                newlyUnlocked.push(titleName);
+            }
         }
     }
+
+    if (userData.level > 100) {
+        const infinityTitle = "Swan Vô Cực";
+        if (!userData.unlockedTitles.includes(infinityTitle)) {
+            userData.unlockedTitles.push(infinityTitle);
+            newlyUnlocked.push(infinityTitle);
+        }
+    }
+
     return newlyUnlocked;
 }
 
-// --- HÀM ĐỊNH DẠNG VNĐ ---
-function formatVND(amount) {
-    if (amount === undefined || isNaN(amount)) amount = 0;
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' VNĐ';
-}
-
+// --- 3. CƠ CHẾ QUẢN LÝ DỮ LIỆU ---
 let memoryDb = {};
 let saveTimeout = null;
 
@@ -186,34 +243,57 @@ function loadData() {
         fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2));
         return {};
     }
-    try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (err) { return {}; }
+    try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch (err) {
+        console.error('Lỗi đọc file data:', err);
+        return {};
+    }
 }
 
 function queueSave() {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
-        try { await fsPromises.writeFile(DATA_FILE, JSON.stringify(memoryDb, null, 2)); } catch (err) {}
+        try {
+            await fsPromises.writeFile(DATA_FILE, JSON.stringify(memoryDb, null, 2));
+        } catch (err) {
+            console.error('Lỗi lưu dữ liệu:', err);
+        }
     }, 3000);
 }
 
-function getXpForNextLevel(level) { return 150 * (level + 1); }
+function getXpForNextLevel(level) {
+    return 150 * (level + 1);
+}
 
 function initGuild(guildId) {
     if (!memoryDb[guildId]) {
         memoryDb[guildId] = {
             config: { 
-                logChannel: null, noXpChannels: [], admins: ['1298727049451540541'], 
+                logChannel: null, 
+                noXpChannels: [], 
+                admins: ['1298727049451540541'], 
                 shopItems: [
                     { id: 1, name: 'Thẻ X1 EXP (1 giờ)', price: 200000, stock: 50, type: 'boost', multiplier: 1 },
                     { id: 2, name: 'Thẻ X2 EXP (1 giờ)', price: 450000, stock: 40, type: 'boost', multiplier: 2 },
-                    { id: 3, name: 'Thẻ Thức Ăn Pet (x5)', price: 150000, stock: 100, type: 'pet_food', amount: 5 }
+                    { id: 3, name: 'Thẻ X3 EXP (1 giờ)', price: 800000, stock: 30, type: 'boost', multiplier: 3 },
+                    { id: 4, name: 'Thẻ X4 EXP (1 giờ)', price: 1300000, stock: 25, type: 'boost', multiplier: 4 },
+                    { id: 5, name: 'Thẻ X5 EXP (1 giờ)', price: 2000000, stock: 20, type: 'boost', multiplier: 5 },
+                    { id: 6, name: 'Thẻ Thức Ăn Pet (x5)', price: 150000, stock: 100, type: 'pet_food', amount: 5 }
                 ],
-                marketplace: [], petMarketplace: []
+                marketplace: [],
+                petMarketplace: []
             },
             users: {}
         };
     }
     if (!memoryDb[guildId].config.admins) memoryDb[guildId].config.admins = ['1298727049451540541'];
+    if (!memoryDb[guildId].config.marketplace) memoryDb[guildId].config.marketplace = [];
+    if (!memoryDb[guildId].config.petMarketplace) memoryDb[guildId].config.petMarketplace = [];
+    
+    memoryDb[guildId].config.shopItems.forEach(item => {
+        if (item.stock === undefined) item.stock = 30;
+    });
 }
 
 function initUser(guildId, userId) {
@@ -253,7 +333,7 @@ const HELP_CATEGORIES = [
         description: 'Hướng dẫn nhanh, tiền tệ và quy tắc sử dụng bot...',
         emoji: '📖',
         title: '❀ 𝐎𝐯𝐞𝐫𝐯𝐢𝐞𝐰 & 𝐐𝐮𝐢𝐜𝐤 𝐆𝐮𝐢𝐝𝐞 ❀',
-        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫️️ **SwanCoin (SWC):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
+        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫ **Tiền Tệ (VNĐ):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
     },
     {
         id: 'cat_tutiens',
@@ -269,7 +349,7 @@ const HELP_CATEGORIES = [
         description: 'Gacha trứng, chăm sóc, cho ăn, lai giống, phóng sinh & trade pet...',
         emoji: '🐾',
         title: '🐾 HỆ THỐNG NUÔI PET & THÚ CƯNG',
-        content: `• \`.trung\` (hoặc \`.pet-gacha\`) — Mở gacha trứng pet ngẫu nhiên (Giá: 300 SWC).\n• \`.mypet\` (hoặc \`.pet-list\`) — Xem danh sách các pet đang sở hữu.\n• \`.pet-chon <STT>\` — Chọn pet đồng hành hiển thị cùng bạn.\n• \`.pet-choan <STT>\` — Cho pet ăn thức ăn để tăng EXP & phục hồi độ đói.\n• \`.muafood <số lượng>\` — Mua trực tiếp thức ăn cho pet nhanh chóng.\n• \`.pet-laigiong <STT1> <STT2>\` — Lai giống 2 pet để tạo ra pet đời mới tiềm năng hơn.\n• \`.pet-phongsinh <STT>\` — Phóng sinh pet không dùng để nhận lại 100 SWC & 3 Thức ăn.\n• \`.pet-rao <STT> <Giá>\` — Ký gửi pet lên chợ P2P.\n• \`.pet-mua <ID Chợ>\` — Mua pet từ người chơi khác.`
+        content: `• \`.trung\` (hoặc \`.pet-gacha\`) — Mở gacha trứng pet ngẫu nhiên (Giá: 300.000 VNĐ).\n• \`.mypet\` (hoặc \`.pet-list\`) — Xem danh sách các pet đang sở hữu.\n• \`.pet-chon <STT>\` — Chọn pet đồng hành hiển thị cùng bạn.\n• \`.pet-choan <STT>\` — Cho pet ăn thức ăn để tăng EXP & phục hồi độ đói.\n• \`.muafood <số lượng>\` — Mua trực tiếp thức ăn cho pet nhanh chóng.\n• \`.pet-laigiong <STT1> <STT2>\` — Lai giống 2 pet để tạo ra pet đời mới tiềm năng hơn.\n• \`.pet-phongsinh <STT>\` — Phóng sinh pet không dùng để nhận lại 100.000 VNĐ & 3 Thức ăn.\n• \`.pet-rao <STT> <Giá>\` — Ký gửi pet lên chợ P2P.\n• \`.pet-mua <ID Chợ>\` — Mua pet từ người chơi khác.`
     },
     {
         id: 'cat_2',
@@ -277,7 +357,7 @@ const HELP_CATEGORIES = [
         description: 'Số dư, điểm danh, làm việc, ví tiền và hồ sơ..',
         emoji: '💳',
         title: '💳 HỆ THỐNG & TÀI CHÍNH',
-        content: `• \`.cap\` (hoặc \`.rank\`, \`.profile\`) — Xem thẻ hồ sơ ảnh cá nhân.\n• \`.tien\` (hoặc \`.vi\`) — Kiểm tra số dư SWC & Hộp quà hiện có.\n• \`.daily\` — Điểm danh nhận thưởng SWC & EXP hàng ngày.\n• \`.pay @User <số tiền>\` — Chuyển tiền SwanCoin cho người khác.`
+        content: `• \`.cap\` (hoặc \`.rank\`, \`.profile\`) — Xem thẻ hồ sơ ảnh cá nhân.\n• \`.tien\` (hoặc \`.vi\`) — Kiểm tra số dư VNĐ & Hộp quà hiện có.\n• \`.daily\` — Điểm danh nhận thưởng VNĐ & EXP hàng ngày.\n• \`.pay @User <số tiền>\` — Chuyển tiền VNĐ cho người khác.`
     },
     {
         id: 'cat_3',
@@ -309,7 +389,7 @@ const HELP_CATEGORIES = [
         description: 'Cộng/trừ tiền, cấp kinh nghiệm, chỉnh sửa shop, pet, tu tiên & chiến lực..',
         emoji: '⚙',
         title: '⚙️ LỆNH QUẢN LÍ DÀNH CHO ADMIN',
-        content: `• \`.givecoin @User <số tiền>\` / \`.removecoin\` — Tặng/trừ tiền SWC.\n• \`.givexp @User <số XP>\` / \`.setlevel\` — Quản lý EXP & Cấp độ.\n• \`.shop-add Tên | Giá | Kho | Type\` — Thêm món mới vào cửa hàng.\n• \`.addpet @User <Tên> [ĐộHiếm] [Cấp]\` — Cấp trực tiếp 1 pet cho người chơi.\n• \`.setpet @User <STT Pet> <Cấp mới>\` — Cập nhật cấp độ thú cưng của người chơi.\n• \`.settuvi @User <Số tu vi>\` — Thiết lập lại điểm tu vi hiện tại cho người chơi.\n• \`.setcanhgioi @User <STT cảnh giới>\` — Đổi cảnh giới tu tiên trực tiếp.\n• \`.setchienluc @User <Số chiến lực>\` — Thiết lập trực tiếp điểm chiến lực cho người chơi.`
+        content: `• \`.givecoin @User <số tiền>\` / \`.removecoin\` — Tặng/trừ tiền VNĐ.\n• \`.givexp @User <số XP>\` / \`.setlevel\` — Quản lý EXP & Cấp độ.\n• \`.shop-add Tên | Giá | Kho | Type\` — Thêm món mới vào cửa hàng.\n• \`.addpet @User <Tên> [ĐộHiếm] [Cấp]\` — Cấp trực tiếp 1 pet cho người chơi.\n• \`.setpet @User <STT Pet> <Cấp mới>\` — Cập nhật cấp độ thú cưng của người chơi.\n• \`.settuvi @User <Số tu vi>\` — Thiết lập lại điểm tu vi hiện tại cho người chơi.\n• \`.setcanhgioi @User <STT cảnh giới>\` — Đổi cảnh giới tu tiên trực tiếp.\n• \`.setchienluc @User <Số chiến lực>\` — Thiết lập trực tiếp điểm chiến lực cho người chơi.`
     },
     {
         id: 'cat_7',
@@ -463,7 +543,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
                     userData.xp -= xpNeeded;
                     userData.level += 1;
                     userData.xp += 15;
-                    userData.coins = (userData.coins || 0) + 50;
+                    userData.coins = (userData.coins || 0) + 50000;
                     if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
                     checkLevelTitles(userData);
                     xpNeeded = getXpForNextLevel(userData.level);
@@ -546,7 +626,7 @@ client.on('interactionCreate', async (interaction) => {
             const remaining = giftData.maxSlots - claimedCount;
 
             const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                .setDescription(`Admin **${giftData.authorName}** vừa phát một đợt hộp quà may mắn!\n\n🎁 Phần thưởng mỗi suất: **${giftData.rewardAmount} SWC**\n⚡ Trạng thái: Đã có **${claimedCount}/${giftData.maxSlots}** người nhặt (Còn lại: **${remaining}** suất)`);
+                .setDescription(`Admin **${giftData.authorName}** vừa phát một đợt hộp quà may mắn!\n\n🎁 Phần thưởng mỗi suất: **${formatVND(giftData.rewardAmount)}**\n⚡ Trạng thái: Đã có **${claimedCount}/${giftData.maxSlots}** người nhặt (Còn lại: **${remaining}** suất)`);
 
             if (remaining <= 0) {
                 activeGifts.delete(giftId);
@@ -554,11 +634,11 @@ client.on('interactionCreate', async (interaction) => {
                     new ButtonBuilder().setCustomId('expired_gift').setLabel('Đã Hết Quà').setStyle(ButtonStyle.Secondary).setDisabled(true)
                 );
                 await interaction.message.edit({ embeds: [updatedEmbed], components: [disabledRow] }).catch(() => {});
-                return interaction.reply({ content: `🎁 Chúc mừng bạn đã nhanh tay nhặt suất **${giftData.rewardAmount} SWC** cuối cùng thành công!`, ephemeral: true });
+                return interaction.reply({ content: `🎁 Chúc mừng bạn đã nhanh tay nhặt suất **${formatVND(giftData.rewardAmount)}** cuối cùng thành công!`, ephemeral: true });
             } else {
                 giftData.isProcessing = false;
                 await interaction.message.edit({ embeds: [updatedEmbed] }).catch(() => {});
-                return interaction.reply({ content: `🎁 Chúc mừng bạn đã nhặt thành công **${giftData.rewardAmount} SWC**!`, ephemeral: true });
+                return interaction.reply({ content: `🎁 Chúc mừng bạn đã nhặt thành công **${formatVND(giftData.rewardAmount)}**!`, ephemeral: true });
             }
         }
 
@@ -615,7 +695,7 @@ client.on('messageCreate', async (message) => {
                 userData.xp -= xpNeeded;
                 userData.level += 1;
                 userData.xp += 15;
-                userData.coins = (userData.coins || 0) + 50;
+                userData.coins = (userData.coins || 0) + 50000;
                 const newLevel = userData.level;
 
                 if (newLevel % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
@@ -625,7 +705,7 @@ client.on('messageCreate', async (message) => {
 
                 const levelEmbed = new EmbedBuilder()
                     .setColor('#FFB6C1')
-                    .setDescription(`🎉 Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**! Nhận thêm **15 EXP** & **50 SWC**! ✨${newLevel % 5 === 0 ? '\n🎁 Nhận được **1 Hộp Quà** (\`.mohopqua\`)!' : ''}${titleMsg}`);
+                    .setDescription(`🎉 Chúc mừng ${message.author} đã đạt **Cấp ${newLevel}**! Nhận thêm **15 EXP** & **${formatVND(50000)}**! ✨${newLevel % 5 === 0 ? '\n🎁 Nhận được **1 Hộp Quà** (\`.mohopqua\`)!' : ''}${titleMsg}`);
 
                 const targetChannel = message.guild.channels.cache.get(guildConfig.logChannel) || message.channel;
                 targetChannel.send({ embeds: [levelEmbed] }).catch(() => {});
@@ -643,7 +723,6 @@ client.on('messageCreate', async (message) => {
     const isBotAdmin = guildConfig.admins.includes(userId) || isDeveloper;
     const isBotStaff = isBotAdmin || message.member.permissions.has(PermissionFlagsBits.ModerateMembers);
 
-    // Xác định quyền miễn phí (Admin hoặc Developer)
     const isFreePrivileged = isBotAdmin || isDeveloper;
 
     function getUserRoleTitle(uId, targetUserData) {
@@ -653,9 +732,7 @@ client.on('messageCreate', async (message) => {
         return getTitleForLevel(targetUserData.level);
     }
 
-    // --- HỆ THỐNG TU TIÊN RIÊNG BIỆT (TÁCH BIỆT KHỎI LEVEL CHAT) ---
-
-        // 1. Xem Hồ Sơ Tu Tiên (.tutin hoặc .tuigiang)
+    // --- HỆ THỐNG TU TIÊN ---
     if (command === 'tutin' || command === 'tuigiang') {
         const cult = userData.cultivation || { realmIndex: 0, tuvi: 0, faction: 'Thường', power: 100 };
         const currentRealmObj = CULTIVATION_REALMS[cult.realmIndex] || CULTIVATION_REALMS[0];
@@ -665,7 +742,6 @@ client.on('messageCreate', async (message) => {
         const factionColor = isEvil ? '#8B0000' : '#4682B4';
         const factionTitle = isEvil ? '🔴 Ma Đạo (Ác Tăng)' : '🔵 Chính Đạo (Thường)';
 
-        // Phân biệt rõ tên cảnh giới giữa Thường và Ác
         let realmName = isEvil ? (currentRealmObj.nameMa || currentRealmObj.name) : currentRealmObj.name;
         let nextRealmName = 'MAX';
         if (nextRealmObj) {
@@ -685,7 +761,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 2. Chọn Phe Phái Tu Tiên (.nhaphe Thường / Ác)
     if (command === 'nhaphe' || command === 'chonphe') {
         const choice = args[0] ? args[0].toLowerCase() : '';
         if (choice !== 'thuong' && choice !== 'thường' && choice !== 'ac' && choice !== 'ác') {
@@ -696,7 +771,6 @@ client.on('messageCreate', async (message) => {
         const oldFaction = userData.cultivation.faction;
 
         let resetNotice = '';
-        // Kiểm tra nếu đang ở phe Ác mà đổi sang phe Thường
         if (oldFaction === 'Ác' && factionName === 'Thường') {
             userData.cultivation.realmIndex = 0;
             userData.cultivation.tuvi = 0;
@@ -711,7 +785,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✨ Bạn đã gia nhập thành công phe **${factionDisplay}**!${resetNotice}`);
     }
 
-    // 3. Bế Quan Tu Luyện hấp thụ Tu Vi riêng biệt (.bequan hoặc .tuluyen)
     if (command === 'bequan' || command === 'tuluyen') {
         const cult = userData.cultivation;
         const tuviGained = Math.floor(Math.random() * 101) + 50;
@@ -721,7 +794,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`🧘 Bạn đã bế quan thiền định thành công và hấp thụ thiên địa linh khí:\n✨ **+${tuviGained} Tu Vi** (Tổng tu vi: **${cult.tuvi}**). Gõ \`.dothe\` để tiến hành độ kiếp khi đủ điều kiện!`);
     }
 
-        // 4. Độ Kiếp Đột Phá Cảnh Giới Tu Tiên (.dothe)
     if (command === 'dothe' || command === 'dotap' || command === 'dotpha') {
         let cult = userData.cultivation;
         if (!cult) {
@@ -774,13 +846,11 @@ client.on('messageCreate', async (message) => {
     }
 
 
-    // --- HỆ THỐNG NUÔI PET (THÚ CƯNG) ---
-
-    // 1. Gacha Trứng Pet
+    // --- HỆ THỐNG NUÔI PET ---
     if (command === 'trung' || command === 'pet-gacha' || command === 'gacha') {
-        const GACHA_PRICE = 300;
+        const GACHA_PRICE = 300000;
         if (!isFreePrivileged && (userData.coins || 0) < GACHA_PRICE) {
-            return message.reply(`❌ Bạn cần ít nhất **${GACHA_PRICE} SWC** để mua và ấp 1 quả trứng pet gacha!`);
+            return message.reply(`❌ Bạn cần ít nhất **${formatVND(GACHA_PRICE)}** để mua và ấp 1 quả trứng pet gacha!`);
         }
 
         if (!isFreePrivileged) {
@@ -805,7 +875,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 2. Danh Sách Pet
     if (command === 'mypet' || command === 'pet-list' || command === 'thu') {
         const pets = userData.pets || [];
         if (pets.length === 0) {
@@ -830,7 +899,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 3. Chọn Pet Đồng Hành
     if (command === 'pet-chon' || command === 'chonpet') {
         const index = parseInt(args[0]) - 1;
         const pets = userData.pets || [];
@@ -843,7 +911,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✨ Đã chọn **${pets[index].name}** làm thú cưng đồng hành chính thức!`);
     }
 
-    // 4. Cho Ăn / Chăm Sóc Pet
     if (command === 'pet-choan' || command === 'choan' || command === 'feed') {
         const index = parseInt(args[0]) - 1;
         const pets = userData.pets || [];
@@ -874,16 +941,15 @@ client.on('messageCreate', async (message) => {
         return message.reply(`🍖 Bạn đã cho **${pet.name}** ăn thành công!\n- Độ đói: **${pet.hunger}%** | Thân thiết: **${pet.affection}\%**${leveledUp ? `\n🎉 Chúc mừng pet đã lên **Cấp ${pet.level}**!` : ''}`);
     }
 
-    // 4.1 Mua nhanh thức ăn cho pet trực tiếp (.muafood)
     if (command === 'muafood' || command === 'pet-muafood') {
         const amount = parseInt(args[0]) || 1;
         if (amount <= 0) return message.reply('Số lượng mua phải lớn hơn 0!');
         
-        const pricePerFood = 30; 
+        const pricePerFood = 30000; 
         const totalPrice = pricePerFood * amount;
 
         if (!isFreePrivileged && (userData.coins || 0) < totalPrice) {
-            return message.reply(`❌ Bạn cần **${totalPrice} SWC** để mua ${amount} thức ăn cho pet (Giá: ${pricePerFood} SWC/cái)!`);
+            return message.reply(`❌ Bạn cần **${formatVND(totalPrice)}** để mua ${amount} thức ăn cho pet (Giá: ${formatVND(pricePerFood)}/cái)!`);
         }
 
         if (!isFreePrivileged) {
@@ -893,11 +959,10 @@ client.on('messageCreate', async (message) => {
         userData.petFood = (userData.petFood || 0) + amount;
         queueSave();
 
-        const freeNotice = isFreePrivileged ? ' *(Miễn phí cho Admin/Dev)*' : ` với giá **${totalPrice} SWC**`;
+        const freeNotice = isFreePrivileged ? ' *(Miễn phí cho Admin/Dev)*' : ` với giá **${formatVND(totalPrice)}**`;
         return message.reply(`🍖 Bạn đã mua thành công **${amount}** thức ăn cho pet${freeNotice}! Tổng số lượng trong túi: **${userData.petFood}** cái.`);
     }
 
-    // 5. Lai Giống Pet (Breed)
     if (command === 'pet-laigiong' || command === 'laigiong' || command === 'breed') {
         const idx1 = parseInt(args[0]) - 1;
         const idx2 = parseInt(args[1]) - 1;
@@ -914,9 +979,9 @@ client.on('messageCreate', async (message) => {
             return message.reply('❌ Cả hai thú cưng đều phải đạt tối thiểu **Cấp 5** mới có thể tiến hành lai giống!');
         }
 
-        const BREED_COST = 500;
+        const BREED_COST = 500000;
         if (!isFreePrivileged && (userData.coins || 0) < BREED_COST) {
-            return message.reply(`❌ Phí lai giống là **${BREED_COST} SWC**! Bạn không đủ tiền.`);
+            return message.reply(`❌ Phí lai giống là **${formatVND(BREED_COST)}**! Bạn không đủ tiền.`);
         }
 
         if (!isFreePrivileged) {
@@ -941,14 +1006,13 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 6. Rao Bán Pet Lên Chợ P2P
     if (command === 'pet-rao' || command === 'pet-sell') {
         const index = parseInt(args[0]) - 1;
         const price = parseInt(args[1]);
         const pets = userData.pets || [];
 
         if (isNaN(index) || isNaN(price) || price <= 0 || !pets[index]) {
-            return message.reply('Cú pháp: `.pet-rao <STT pet> <giá SWC>`');
+            return message.reply('Cú pháp: `.pet-rao <STT pet> <giá VNĐ>`');
         }
 
         if (pets[index].id === userData.activePetId) {
@@ -967,10 +1031,9 @@ client.on('messageCreate', async (message) => {
         });
         queueSave();
 
-        return message.reply(`🛒 Đã ký gửi **${petToSell.name}** (Lvl${petToSell.level}) lên chợ thú cưng với giá **${price} SWC** (Mã chợ: **#${marketId}**)!`);
+        return message.reply(`🛒 Đã ký gửi **${petToSell.name}** (Lvl${petToSell.level}) lên chợ thú cưng với giá **${formatVND(price)}** (Mã chợ: **#${marketId}**)!`);
     }
 
-    // 7. Xem Sàn Chợ Pet
     if (command === 'pet-market' || command === 'chotra') {
         const marketList = guildConfig.petMarketplace || [];
         if (marketList.length === 0) {
@@ -979,14 +1042,13 @@ client.on('messageCreate', async (message) => {
 
         let marketText = marketList.map(m => {
             const rInfo = PET_RARITIES[m.pet.rarity];
-            return `**ID Chợ #${m.marketId}** : **${m.pet.name}** (\`${rInfo.name}\` - Lvl ${m.pet.level})\n   Giá: \`${m.price} SWC\` — Chủ sở hữu: <@${m.sellerId}>`;
+            return `**ID Chợ #${m.marketId}** : **${m.pet.name}** (\`${rInfo.name}\` - Lvl ${m.pet.level})\n   Giá: \`${formatVND(m.price)}\` — Chủ sở hữu: <@${m.sellerId}>`;
         }).join('\n\n');
 
         const embed = new EmbedBuilder().setColor('#FFB6C1').setTitle('🛒 SÀN GIAO DỊCH THÚ CƯNG (P2P)').setDescription(marketText);
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 8. Mua Pet Từ Chợ P2P
     if (command === 'pet-mua' || command === 'muapet') {
         const marketId = parseInt(args[0]);
         const marketList = guildConfig.petMarketplace || [];
@@ -1002,7 +1064,7 @@ client.on('messageCreate', async (message) => {
         }
 
         if (!isFreePrivileged && (userData.coins || 0) < listing.price) {
-            return message.reply('❌ Bạn không đủ SwanCoin để mua pet này!');
+            return message.reply('❌ Bạn không đủ tiền để mua pet này!');
         }
 
         if (!isFreePrivileged) {
@@ -1017,7 +1079,7 @@ client.on('messageCreate', async (message) => {
         queueSave();
 
         const freeNotice = isFreePrivileged ? ' *(Miễn phí cho Admin/Dev)*' : '';
-        return message.reply(`🎉 Bạn đã mua thành công **${listing.pet.name}** với giá **${listing.price} SWC**!${freeNotice}`);
+        return message.reply(`🎉 Bạn đã mua thành công **${listing.pet.name}** với giá **${formatVND(listing.price)}**!${freeNotice}`);
     }
 
     if (command === 'botinfo' || command === 'thongtinbot') {
@@ -1209,7 +1271,7 @@ client.on('messageCreate', async (message) => {
         const rewardAmount = parseInt(args[1]);
 
         if (isNaN(maxSlots) || isNaN(rewardAmount) || maxSlots <= 0 || rewardAmount <= 0) {
-            return message.reply('Cú pháp: `.phatqua <số lượng suất> <số SWC mỗi suất>`\nVí dụ: `.phatqua 5 200`');
+            return message.reply('Cú pháp: `.phatqua <số lượng suất> <số VNĐ mỗi suất>`\nVí dụ: `.phatqua 5 200000`');
         }
 
         const giftId = `gift_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -1224,7 +1286,7 @@ client.on('messageCreate', async (message) => {
         const giftEmbed = new EmbedBuilder()
             .setColor('#FFB6C1')
             .setTitle('🎁 HỘP QUÀ BÍ MẬT XUẤT HIỆN! 🎁')
-            .setDescription(`Admin **${message.author.username}** vừa phát một đợt hộp quà may mắn!\n\n🎁 Phần thưởng mỗi suất: **${rewardAmount} SWC**\n⚡ Trạng thái: Đã có **0/${maxSlots}** người nhặt (Còn lại: **${maxSlots}** suất)`)
+            .setDescription(`Admin **${message.author.username}** vừa phát một đợt hộp quà may mắn!\n\n🎁 Phần thưởng mỗi suất: **${formatVND(rewardAmount)}**\n⚡ Trạng thái: Đã có **0/${maxSlots}** người nhặt (Còn lại: **${maxSlots}** suất)`)
             .setFooter({ text: 'Nhanh tay kẻo hết!' })
             .setTimestamp();
 
@@ -1239,12 +1301,10 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [giftEmbed], components: [row] });
     }
 
-    // --- BỔ SUNG CÁC LỆNH ADMIN QUẢN TRỊ PET, TU TIÊN & CHIẾN LỰC ---
     if (['addpet', 'setpet', 'settuvi', 'setcanhgioi', 'setchienluc', 'pet-phongsinh'].includes(command) && !isBotAdmin) {
         return message.reply('Chỉ Admin bot hoặc Developer mới có quyền sử dụng nhóm lệnh này!');
     }
 
-    // 1. .addpet @User <TênPet> [ĐộHiếm] [CấpĐộ]
     if (command === 'addpet') {
         const targetUser = message.mentions.users.first();
         if (!targetUser) return message.reply('Cú pháp: `.addpet @User <TênPet> [ĐộHiếm] [CấpĐộ]`\nVí dụ: `.addpet @TênNgườiDùng HắcLong LEGENDARY 15`');
@@ -1293,7 +1353,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 2. .setpet @User <STT Pet> <Cấp mới độ>
     if (command === 'setpet') {
         const targetUser = message.mentions.users.first();
         const petIndex = parseInt(args[1]) - 1;
@@ -1317,7 +1376,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✅ Đã cập nhật cấp độ thú cưng **${pets[petIndex].name}** của ${targetUser} thành **Cấp ${newLevel}** thành công!`);
     }
 
-    // 3. .settuvi @User <Số mới tu vi>
     if (command === 'settuvi') {
         const targetUser = message.mentions.users.first();
         const newTuVi = parseInt(args[1]);
@@ -1338,7 +1396,6 @@ client.on('messageCreate', async (message) => {
         return message.reply(`☯ Đã thiết lập lại điểm tu vi hiện tại của ${targetUser} thành **${newTuVi}** điểm tu vi.`);
     }
 
-        // 4. .setcanhgioi @User <Số cảnh giới thứ tự>
     if (command === 'setcanhgioi') {
         const targetUser = message.mentions.users.first();
         const realmIndex = parseInt(args[1]);
@@ -1372,7 +1429,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 4.1 .setchienluc @User <Số chiến lực>
     if (command === 'setchienluc') {
         const targetUser = message.mentions.users.first();
         const newPower = parseInt(args[1]);
@@ -1398,7 +1454,6 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // 5. .pet-phongsinh <STT Pet>
     if (command === 'pet-phongsinh') {
         const petIndex = parseInt(args[0]) - 1;
         const pets = userData.pets || [];
@@ -1414,7 +1469,7 @@ client.on('messageCreate', async (message) => {
 
         pets.splice(petIndex, 1);
         
-        userData.coins = (userData.coins || 0) + 100;
+        userData.coins = (userData.coins || 0) + 100000;
         userData.petFood = (userData.petFood || 0) + 3;
         queueSave();
 
@@ -1423,12 +1478,11 @@ client.on('messageCreate', async (message) => {
             .setTitle('🕊️ PHÓNG SINH THÚ CƯNG THÀNH CÔNG')
             .setDescription(`Bạn đã phóng sinh **${petToRelease.name}** về với thiên nhiên.\n\n` +
                 `🎁 Nhận lại phần thưởng:\n` +
-                `▫️ **+100 SwanCoin (SWC)**\n` +
+                `▫️ **+${formatVND(100000)}**\n` +
                 `▫️ **+3 Thức Ăn Pet**`);
 
         return message.channel.send({ embeds: [embed] });
     }
-    // --- KẾT THÚC BỔ SUNG LỆNH ADMIN PET & TU TIÊN ---
 
     if (['shop-add', 'shop-del', 'shop-setstock', 'shop-setprice', 'setlevel', 'givexp', 'removexp', 'resetxp', 'givecoin', 'removecoin', 'xoatuido', 'danhhieu-set'].includes(command) && !isBotAdmin) {
         return message.reply('Chỉ Admin bot mới dùng được lệnh này!');
@@ -1437,22 +1491,22 @@ client.on('messageCreate', async (message) => {
     if (command === 'givecoin') {
         const targetUser = message.mentions.users.first();
         const amount = parseInt(args[1]);
-        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.givecoin @User <số tiền>`');
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.givecoin @User <số tiền VNĐ>`');
         initUser(guildId, targetUser.id);
         memoryDb[guildId].users[targetUser.id].coins = (memoryDb[guildId].users[targetUser.id].coins || 0) + amount;
         queueSave();
-        return message.reply(`Đã cộng thêm **${amount} SWC** cho ${targetUser.tag}. 🪙`);
+        return message.reply(`Đã cộng thêm **${formatVND(amount)}** cho ${targetUser.tag}. 🪙`);
     }
 
     if (command === 'removecoin') {
         const targetUser = message.mentions.users.first();
         const amount = parseInt(args[1]);
-        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.removecoin @User <số tiền>`');
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.removecoin @User <số tiền VNĐ>`');
         initUser(guildId, targetUser.id);
         let u = memoryDb[guildId].users[targetUser.id];
         u.coins = Math.max(0, (u.coins || 0) - amount);
         queueSave();
-        return message.reply(`Đã trừ **${amount} SWC** của ${targetUser.tag}.`);
+        return message.reply(`Đã trừ **${formatVND(amount)}** của ${targetUser.tag}.`);
     }
 
     if (command === 'givexp') {
@@ -1468,7 +1522,7 @@ client.on('messageCreate', async (message) => {
             u.xp -= xpNeeded;
             u.level += 1;
             u.xp += 15;
-            u.coins = (u.coins || 0) + 50;
+            u.coins = (u.coins || 0) + 50000;
             if (u.level % 5 === 0) u.giftboxes = (u.giftboxes || 0) + 1;
             checkLevelTitles(u);
             xpNeeded = getXpForNextLevel(u.level);
@@ -1542,18 +1596,18 @@ client.on('messageCreate', async (message) => {
     if (command === 'shop-setprice') {
         const itemId = parseInt(args[0]);
         const newPrice = parseInt(args[1]);
-        if (isNaN(itemId) || isNaN(newPrice) || newPrice < 0) return message.reply('Cú pháp: `.shop-setprice <ID> <giá mới>`');
+        if (isNaN(itemId) || isNaN(newPrice) || newPrice < 0) return message.reply('Cú pháp: `.shop-setprice <ID> <giá mới VNĐ>`');
         const item = guildConfig.shopItems.find(i => i.id === itemId);
         if (!item) return message.reply(`Không tìm thấy vật phẩm ID **#${itemId}**!`);
 
         item.price = newPrice;
         queueSave();
-        return message.reply(`Đã cập nhật giá vật phẩm **"${item.name}"** thành **${newPrice} SWC**.`);
+        return message.reply(`Đã cập nhật giá vật phẩm **"${item.name}"** thành **${formatVND(newPrice)}**.`);
     }
 
     if (command === 'shop-add') {
         const parts = args.join(' ').split('|').map(p => p.trim());
-        if (parts.length < 3) return message.reply('Cú pháp: `.shop-add Tên | Giá SWC | boost/title/pet_food | [Multiplier/Amount]`');
+        if (parts.length < 3) return message.reply('Cú pháp: `.shop-add Tên | Giá VNĐ | boost/title/pet_food | [Multiplier/Amount]`');
         let name = parts[0], price = parseInt(parts[1]), stock = 30, type = '', subValue = '';
         if (!isNaN(parseInt(parts[2]))) {
             stock = parseInt(parts[2]);
@@ -1585,7 +1639,7 @@ client.on('messageCreate', async (message) => {
         const marketList = guildConfig.marketplace || [];
         if (marketList.length === 0) return message.channel.send('🛒 Sàn Giao Dịch P2P hiện đang trống!');
 
-        let marketText = marketList.map(m => `**ID Chợ #${m.marketId}** : **${m.itemName}** (\`Loại: ${m.type}\`)\n   Giá: \`${m.price} SWC\` — Người bán: <@${m.sellerId}>`).join('\n\n');
+        let marketText = marketList.map(m => `**ID Chợ #${m.marketId}** : **${m.itemName}** (\`Loại: ${m.type}\`)\n   Giá: \`${formatVND(m.price)}\` — Người bán: <@${m.sellerId}>`).join('\n\n');
         const marketEmbed = new EmbedBuilder().setColor('#FFB6C1').setTitle(`🛒 SÀN KÝ GỬI (P2P)`).setDescription(marketText);
         return message.channel.send({ embeds: [marketEmbed] });
     }
@@ -1593,7 +1647,7 @@ client.on('messageCreate', async (message) => {
     if (command === 'market-rao' || command === 'rao') {
         const itemIndex = parseInt(args[0]) - 1;
         const sellPrice = parseInt(args[1]);
-        if (isNaN(itemIndex) || isNaN(sellPrice) || sellPrice <= 0) return message.reply('Cú pháp: `.market-rao <stt túi> <giá>`');
+        if (isNaN(itemIndex) || isNaN(sellPrice) || sellPrice <= 0) return message.reply('Cú pháp: `.market-rao <stt túi> <giá VNĐ>`');
 
         if (!userData.inventory || !userData.inventory[itemIndex]) return message.reply('Vật phẩm không tồn tại trong túi đồ!');
         const itemToSell = userData.inventory.splice(itemIndex, 1)[0];
@@ -1603,7 +1657,7 @@ client.on('messageCreate', async (message) => {
 
         guildConfig.marketplace.push({ marketId, sellerId: userId, itemName: itemToSell.name, price: sellPrice, type: itemToSell.type, multiplier: itemToSell.multiplier || 1, amount: itemToSell.amount || 1, title: itemToSell.title || null });
         queueSave();
-        return message.reply(`Đã ký gửi **"${itemToSell.name}"** lên chợ với giá **${sellPrice} SWC** (ID chợ: **#${marketId}**)!`);
+        return message.reply(`Đã ký gửi **"${itemToSell.name}"** lên chợ với giá **${formatVND(sellPrice)}** (ID chợ: **#${marketId}**)!`);
     }
 
     if (command === 'market-mua' || command === 'muacho') {
@@ -1617,7 +1671,7 @@ client.on('messageCreate', async (message) => {
         if (listing.sellerId === userId) return message.reply('Không thể tự mua vật phẩm của chính mình!');
         
         if (!isFreePrivileged && (userData.coins || 0) < listing.price) {
-            return message.reply('Bạn không đủ SwanCoin!');
+            return message.reply('Bạn không đủ tiền!');
         }
 
         if (!isFreePrivileged) {
@@ -1632,25 +1686,22 @@ client.on('messageCreate', async (message) => {
         queueSave();
 
         const freeNotice = isFreePrivileged ? ' *(Miễn phí cho Admin/Dev)*' : '';
-        return message.reply(`Bạn đã mua thành công **"${listing.itemName}"** với giá **${listing.price} SWC**.${freeNotice}`);
+        return message.reply(`Bạn đã mua thành công **"${listing.itemName}"** với giá **${formatVND(listing.price)}**.${freeNotice}`);
     }
 
-    // --- LỆNH .bxh (ĐÃ SỬA LỖI & TÍCH HỢP) ---
-        if (command === 'bxh' || command === 'leaderboard') {
+    if (command === 'bxh' || command === 'leaderboard') {
         try {
             initGuild(guildId);
             const usersObj = memoryDb[guildId].users || {};
             
-            // Sắp xếp người chơi theo Cấp độ (level) giảm dần, sau đó đến EXP
             const sortedUsers = Object.entries(usersObj)
                 .map(([id, data]) => ({ id, ...data }))
                 .sort((a, b) => (b.level - a.level) || (b.xp - a.xp))
-                .slice(0, 10); // Lấy top 10
+                .slice(0, 10);
 
             const canvas = Canvas.createCanvas(900, 700);
             const ctx = canvas.getContext('2d');
 
-            // Nền gradient bắt mắt
             const bgGrad = ctx.createLinearGradient(0, 0, 900, 700);
             bgGrad.addColorStop(0, '#1E1B2E'); 
             bgGrad.addColorStop(1, '#0F0E17');
@@ -1659,7 +1710,6 @@ client.on('messageCreate', async (message) => {
             ctx.roundRect(0, 0, 900, 700, 28); 
             ctx.fill();
 
-            // Tiêu đề bảng xếp hạng
             ctx.fillStyle = '#FFFFFF'; 
             ctx.font = 'bold 32px sans-serif';
             ctx.textAlign = 'center';
@@ -1674,27 +1724,23 @@ client.on('messageCreate', async (message) => {
                     memberTag = fetchedMember.user.username;
                 } catch (e) {}
 
-                // Khung nền từng hàng
                 ctx.fillStyle = i === 0 ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)';
                 ctx.beginPath(); 
                 ctx.roundRect(50, startY, 800, 50, 14); 
                 ctx.fill();
 
-                // Thứ hạng
                 ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : (i === 2 ? '#CD7F32' : '#E2E8F0'));
                 ctx.font = 'bold 20px sans-serif';
                 ctx.textAlign = 'left';
                 ctx.fillText(`#${i + 1}`, 75, startY + 32);
 
-                // Tên người chơi
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(memberTag.length > 20 ? memberTag.substring(0, 20) + '...' : memberTag, 135, startY + 32);
 
-                // Cấp độ & Tiền tệ
                 ctx.fillStyle = '#C084FC';
                 ctx.textAlign = 'right';
-                ctx.fillText(`Cấp ${u.level || 0} | ${u.coins || 0} SWC`, 820, startY + 32);
+                ctx.fillText(`Cấp ${u.level \vert{}\vert{} 0} \vert{}${formatVND(u.coins || 0)}`, 820, startY + 32);
 
                 startY += 58;
             }
@@ -1707,7 +1753,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // --- LỆNH .shop (ĐÃ CẢI THIỆN MÀU SẮC RÕ RÀNG) ---
     if (command === 'shop' || command === 'cuahang') {
         try {
             const currentShop = guildConfig.shopItems || [];
@@ -1723,16 +1768,14 @@ client.on('messageCreate', async (message) => {
             ctx.roundRect(0, 0, 900, canvasHeight, 28); 
             ctx.fill();
 
-            // Tiêu đề shop - Trắng sáng
             ctx.fillStyle = '#FFFFFF'; 
             ctx.font = 'bold 32px sans-serif';
             ctx.fillText(`CỬA HÀNG VẬT PHẨM & THỨC ĂN PET`, 65, 55);
 
-            // Số dư ví - Màu vàng sáng dễ thấy
             ctx.fillStyle = '#FACC15'; 
             ctx.font = 'bold 20px sans-serif'; 
             ctx.textAlign = 'right';
-            ctx.fillText(`Ví: ${userData.coins || 0} SWC`, 830, 55); 
+            ctx.fillText(`Ví: ${formatVND(userData.coins || 0)}`, 830, 55); 
             ctx.textAlign = 'left';
 
             let startY = 110;
@@ -1744,26 +1787,22 @@ client.on('messageCreate', async (message) => {
                 ctx.roundRect(40, startY, 820, 60, 18); 
                 ctx.fill();
 
-                // ID vật phẩm (Màu tím sáng)
                 ctx.fillStyle = '#C084FC'; 
                 ctx.font = 'bold 20px sans-serif';
                 ctx.fillText(`#${item.id}`, 60, startY + 38);
 
-                // Tên vật phẩm (Màu trắng tinh, rõ tuyệt đối)
                 ctx.fillStyle = '#FFFFFF'; 
                 ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(item.name, 150, startY + 38);
 
-                // Số lượng tồn kho (Màu xanh ngọc sáng)
                 ctx.fillStyle = '#34D399'; 
                 ctx.font = 'bold 16px sans-serif';
                 ctx.fillText(`Còn: ${item.stock}`, 520, startY + 38);
 
-                // Giá tiền (Màu vàng sáng nổi bật)
                 ctx.fillStyle = '#FDE047'; 
                 ctx.font = 'bold 20px sans-serif'; 
                 ctx.textAlign = 'right';
-                ctx.fillText(`${item.price} SWC`, 830, startY + 38); 
+                ctx.fillText(formatVND(item.price), 830, startY + 38); 
                 ctx.textAlign = 'left';
 
                 startY += 75;
@@ -1772,7 +1811,7 @@ client.on('messageCreate', async (message) => {
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'cute_shop.png' });
             return message.channel.send({ files: [attachment] });
         } catch (error) {
-            let shopText = guildConfig.shopItems.map(i => `[ID: #${i.id}] **${i.name}** — \`${i.price} SWC\``).join('\n');
+            let shopText = guildConfig.shopItems.map(i => `[ID: #${i.id}] **${i.name}** — \`${formatVND(i.price)}\``).join('\n');
             const embed = new EmbedBuilder().setColor('#FFB6C1').setTitle('🛒 Cửa Hàng').setDescription(shopText || 'Trống');
             return message.channel.send({ embeds: [embed] });
         }
@@ -1785,7 +1824,7 @@ client.on('messageCreate', async (message) => {
         if (item.stock <= 0) return message.reply('Sản phẩm đã hết hàng!');
         
         if (!isFreePrivileged && (userData.coins || 0) < item.price) {
-            return message.reply('Không đủ SwanCoin!');
+            return message.reply('Không đủ tiền!');
         }
 
         if (item.type === 'title' && userData.unlockedTitles.includes(item.title)) {
@@ -1820,7 +1859,7 @@ client.on('messageCreate', async (message) => {
         const now = Date.now();
         if (now - userData.lastDaily < 86400000) return message.reply('Bạn đã điểm danh hôm nay rồi!');
         userData.lastDaily = now;
-        userData.coins = (userData.coins || 0) + 100;
+        userData.coins = (userData.coins || 0) + 100000;
         userData.xp += 50;
         userData.petFood = (userData.petFood || 0) + 2;
         
@@ -1829,24 +1868,29 @@ client.on('messageCreate', async (message) => {
             userData.xp -= xpNeeded;
             userData.level += 1;
             userData.xp += 15;
-            userData.coins = (userData.coins || 0) + 50;
+            userData.coins = (userData.coins || 0) + 50000;
             if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
             checkLevelTitles(userData);
             xpNeeded = getXpForNextLevel(userData.level);
         }
         queueSave();
-        return message.reply('🌸 Điểm danh thành công: **+100 SWC**, **+50 EXP** & **+2 Thức ăn Pet**.');
+        return message.reply(`🎁 Điểm danh thành công! Nhận được **50 EXP**, **${formatVND(100000)}** và **2 Thức Ăn Pet**! ✨`);
     }
 
-    if (command === 'tien' || command === 'vi') {
-        return message.reply(`Số dư ví: **${userData.coins || 0} SwanCoin (SWC)** | Hộp Quà: **${userData.giftboxes || 0}** | Thức Ăn Pet: **${userData.petFood || 0}**.`);
+    if (command === 'tien' || command === 'vi' || command === 'balance') {
+        const embed = new EmbedBuilder()
+            .setColor('#FFB6C1')
+            .setTitle(`💳 VÍ TIỀN CỦA ${message.author.username.toUpperCase()}`)
+            .setDescription(`💰 **Số dư VNĐ:** ${formatVND(userData.coins || 0)}\n🎁 **Hộp Quà (Chưa mở):** ${userData.giftboxes || 0} hộp\n🍖 **Thức Ăn Pet:** ${userData.petFood || 0} cái\n✨ **Cấp Độ:** ${userData.level} (EXP: ${userData.xp}/${getXpForNextLevel(userData.level)})`);
+        return message.channel.send({ embeds: [embed] });
     }
 
-    if (command === 'pay' || command === 'chuyen') {
+    if (command === 'pay' || command === 'chuyentien') {
         const targetUser = message.mentions.users.first();
         const amount = parseInt(args[1]);
-        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.pay @User <số tiền>`');
-        if (targetUser.bot || targetUser.id === userId) return message.reply('Không thể chuyển tiền cho bot hoặc chính mình!');
+        if (!targetUser || isNaN(amount) || amount <= 0) return message.reply('Cú pháp: `.pay @User <số tiền VNĐ>`');
+        if (targetUser.id === userId) return message.reply('Không thể tự chuyển tiền cho chính mình!');
+
         if ((userData.coins || 0) < amount) return message.reply('Bạn không đủ số dư để chuyển!');
 
         userData.coins -= amount;
@@ -1854,169 +1898,151 @@ client.on('messageCreate', async (message) => {
         memoryDb[guildId].users[targetUser.id].coins = (memoryDb[guildId].users[targetUser.id].coins || 0) + amount;
         queueSave();
 
-        return message.reply(`Đã chuyển thành công **${amount} SWC** cho ${targetUser}!`);
-    }
-
-    if (command === 'chuyensinh' || command === 'cs') {
-        if (userData.level < 100) return message.reply('Cần đạt **Cấp 100** để chuyển sinh!');
-        if ((userData.coins || 0) < 5000) return message.reply('Cần **5000 SWC** phí chuyển sinh!');
-
-        userData.coins -= 5000;
-        userData.level = 0;
-        userData.xp = 0;
-        userData.prestige = (userData.prestige || 0) + 1;
-
-        const prestigeTitle = `Chuyển Sinh Cấp ${userData.prestige}`;
-        if (!userData.unlockedTitles.includes(prestigeTitle)) userData.unlockedTitles.push(prestigeTitle);
-        userData.title = prestigeTitle;
-        queueSave();
-
-        const csEmbed = new EmbedBuilder()
-            .setColor('#FFB6C1')
-            .setTitle('CHUYỂN SINH THÀNH CÔNG!')
-            .setDescription(`Chúc mừng bạn đã **Chuyển Sinh lần thứ ${userData.prestige}**!\nNhận danh hiệu: \`${prestigeTitle}\``);
-        return message.channel.send({ embeds: [csEmbed] });
-    }
-
-    if (command === 'mohopqua') {
-        if ((userData.giftboxes || 0) <= 0) return message.reply('Bạn không có Hộp Quà nào!');
-        userData.giftboxes -= 1;
-
-        const picked = ['coins', 'xp', 'title'][Math.floor(Math.random() * 3)];
-        let rewardText = '';
-
-        if (picked === 'coins') {
-            const val = Math.floor(Math.random() * 500) + 200;
-            userData.coins += val;
-            rewardText = `**+${val} SWC**`;
-        } else if (picked === 'xp') {
-            const val = Math.floor(Math.random() * 300) + 100;
-            userData.xp += val;
-            rewardText = `**+${val} EXP**`;
-        } else {
-            const title = 'Thần Thánh Chat';
-            if (!userData.unlockedTitles.includes(title)) userData.unlockedTitles.push(title);
-            userData.title = title;
-            rewardText = `Danh hiệu: \`${title}\``;
-        }
-        queueSave();
-        return message.reply(`Mở hộp quà nhận được: ${rewardText}!`);
-    }
-
-    if (command === 'danhhieu' || command === 'title') {
-        checkLevelTitles(userData);
-        const action = args[0]?.toLowerCase();
-        const titleChoice = args.slice(1).join(' ');
-
-        if (action === 'chon' || action === 'set') {
-            if (!titleChoice) return message.reply('Cú pháp: `.danhhieu chon <tên danh hiệu>`');
-            const matched = userData.unlockedTitles.find(t => t.toLowerCase() === titleChoice.toLowerCase());
-            if (!matched) return message.reply('Bạn chưa sở hữu danh hiệu này!');
-            userData.title = matched;
-            queueSave();
-            return message.reply(`Đã trang bị danh hiệu: **${matched}**!`);
-        }
-
-        let listText = userData.unlockedTitles.map(t => `${t === userData.title ? '🌸 **[Đang đeo]** ' : '• '}${t}`).join('\n');
-        const titleEmbed = new EmbedBuilder().setColor('#FFB6C1').setTitle(`🎀 Kho Danh Hiệu`).setDescription(listText);
-        return message.channel.send({ embeds: [titleEmbed] });
+        return message.reply(`✅ Đã chuyển thành công **${formatVND(amount)}** cho ${targetUser.tag}! 💸`);
     }
 
     if (command === 'tuido' || command === 'inventory') {
-        let invText = (userData.inventory || []).map((item, index) => `**[${index + 1}]** ${item.name}`).join('\n');
-        return message.reply(`🎒 Túi Đồ:\n${invText || 'Trống'}\n\n🍖 Thức Ăn Pet: **${userData.petFood || 0}** cái`);
+        const inv = userData.inventory || [];
+        let invText = inv.map((item, idx) => `**[#${idx + 1}]** ${item.name} (\`Loại: ${item.type}\`)`).join('\n');
+
+        const embed = new EmbedBuilder()
+            .setColor('#FFB6C1')
+            .setTitle(`🎒 TÚI ĐỒ CỦA ${message.author.username.toUpperCase()}`)
+            .setDescription(invText || 'Túi đồ đang trống!')
+            .setFooter({ text: 'Dùng .sd <STT> để sử dụng vật phẩm' });
+        return message.channel.send({ embeds: [embed] });
     }
 
-    if (command === 'sd' || command === 'sudung') {
+    if (command === 'sd' || command === 'use') {
         const index = parseInt(args[0]) - 1;
-        if (isNaN(index) || !userData.inventory || !userData.inventory[index]) return message.reply('Cú pháp: `.sd <số thứ tự>`');
+        const inv = userData.inventory || [];
+        if (isNaN(index) || !inv[index]) return message.reply('Cú pháp: `.sd <số thứ tự vật phẩm trong .tuido>`');
 
-        const item = userData.inventory[index];
+        const item = inv.splice(index, 1)[0];
+
         if (item.type === 'boost') {
             userData.personalBoostUntil = Date.now() + 3600000;
             userData.boostMultiplier = item.multiplier || 2;
-            userData.inventory.splice(index, 1);
-            message.reply(`Đã dùng **${item.name}**! Kích hoạt nhân đôi EXP trong 1 giờ.`);
-        } else {
-            const titleName = item.title || item.name;
-            if (!userData.unlockedTitles.includes(titleName)) userData.unlockedTitles.push(titleName);
-            userData.title = titleName;
-            userData.inventory.splice(index, 1);
-            message.reply(`Đã trang bị danh hiệu: **${titleName}**!`);
+        } else if (item.type === 'title') {
+            if (!userData.unlockedTitles.includes(item.title)) userData.unlockedTitles.push(item.title);
+            userData.title = item.title;
+        } else if (item.type === 'pet_food') {
+            userData.petFood = (userData.petFood || 0) + (item.amount || 5);
         }
+
         queueSave();
-        return;
+        return message.reply(`✨ Đã sử dụng thành công **${item.name}**!`);
     }
 
-    if (command === 'cap' || command === 'rank' || command === 'profile' || command === 'thongtin') {
-        const targetMember = message.mentions.members.first() || message.member;
-        const targetUser = targetMember.user;
-        initUser(guildId, targetUser.id);
-        const uData = memoryDb[guildId].users[targetUser.id];
-        checkLevelTitles(uData);
-
-        const excludedIds = [...DEVELOPER_IDS, ...(guildConfig.admins || [])];
-        const allUsers = Object.entries(memoryDb[guildId].users || {})
-            .filter(([id]) => !excludedIds.includes(id))
-            .map(([id, data]) => ({ id, level: data.level, xp: data.xp, prestige: data.prestige || 0 }))
-            .sort((a, b) => b.prestige === a.prestige ? (b.level === a.level ? b.xp - a.xp : b.level - a.level) : b.prestige - a.prestige);
-        
-        const rank = allUsers.findIndex(u => u.id === targetUser.id) + 1 || allUsers.length + 1;
-        const requiredXp = getXpForNextLevel(uData.level);
-
-        const activePet = (uData.pets || []).find(p => p.id === uData.activePetId);
-        const petInfoText = activePet ? `🐾 Pet: ${activePet.name} (Lvl ${activePet.level})` : '🐾 Pet: Không có';
-
-        try {
-            const canvas = Canvas.createCanvas(930, 360);
-            const ctx = canvas.getContext('2d');
-            const bgGrad = ctx.createLinearGradient(0, 0, 930, 360);
-            bgGrad.addColorStop(0, '#2E1A47'); bgGrad.addColorStop(1, '#110C1D');
-            ctx.fillStyle = bgGrad; ctx.beginPath(); ctx.roundRect(0, 0, 930, 360, 30); ctx.fill();
-
-            try {
-                const avatar = await Canvas.loadImage(targetUser.displayAvatarURL({ extension: 'png', size: 256 }));
-                ctx.save(); ctx.beginPath(); ctx.arc(135, 165, 78, 0, Math.PI * 2, true); ctx.closePath(); ctx.clip();
-                ctx.drawImage(avatar, 57, 87, 156, 156); ctx.restore();
-            } catch (e) {}
-
-            ctx.fillStyle = '#E2E8F0'; ctx.font = 'bold 36px sans-serif';
-            ctx.fillText(targetUser.username, 250, 75);
-
-            ctx.fillStyle = '#C084FC'; ctx.font = 'bold 20px sans-serif';
-            ctx.fillText(`Chuyển Sinh: ${uData.prestige || 0}`, 250, 115);
-
-            ctx.fillStyle = '#9370DB'; ctx.font = 'bold 20px sans-serif';
-            ctx.fillText(`Danh hiệu: ${getUserRoleTitle(targetUser.id, uData)}`, 250, 150);
-
-            ctx.fillStyle = '#FF8C00'; ctx.font = 'bold 18px sans-serif';
-            ctx.fillText(petInfoText, 250, 185);
-
-            ctx.fillStyle = '#A78BFA'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'right';
-            ctx.fillText(`LVL ${uData.level}`, 870, 75);
-            ctx.fillStyle = '#9370DB'; ctx.font = 'bold 20px sans-serif'; ctx.fillText(`Rank #${rank}`, 870, 110); ctx.textAlign = 'left';
-
-            const barX = 250, barY = 220, barW = 620, barH = 32;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 16); ctx.fill();
-
-            const progress = Math.min(Math.max(uData.xp / requiredXp, 0), 1);
-            if (progress > 0) {
-                const fillW = Math.max(barH, barW * progress);
-                const progGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
-                progGrad.addColorStop(0, '#FF69B4'); progGrad.addColorStop(1, '#FFB6C1');
-                ctx.fillStyle = progGrad;
-                ctx.beginPath(); ctx.roundRect(barX, barY, fillW, barH, 16); ctx.fill();
+    if (command === 'danhhieu') {
+        const sub = args[0] ? args[0].toLowerCase() : '';
+        if (sub === 'chon' || sub === 'trangbi') {
+            const titleName = args.slice(1).join(' ');
+            if (!titleName) return message.reply('Cú pháp: `.danhhieu chon <tên danh hiệu>`');
+            if (!userData.unlockedTitles || !userData.unlockedTitles.includes(titleName)) {
+                return message.reply('❌ Bạn chưa mở khóa hoặc sở hữu danh hiệu này!');
             }
+            userData.title = titleName;
+            queueSave();
+            return message.reply(`✨ Đã trang bị thành công danh hiệu: **${titleName}**!`);
+        }
 
-            ctx.fillStyle = '#E2E8F0'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText(`EXP: ${uData.xp} / ${requiredXp}`, barX + barW / 2, barY + 21); 
-            ctx.textAlign = 'left';
+        const titles = userData.unlockedTitles || [LEVEL_TITLES[1]];
+        const embed = new EmbedBuilder()
+            .setColor('#FFB6C1')
+            .setTitle(`👑 DANH HIỆU ĐÃ MỞ KHÓA`)
+            .setDescription(`Danh hiệu hiện tại: **${userData.title || getTitleForLevel(userData.level)}**\n\n` + titles.map(t => `▫️ ${t}`).join('\n'))
+            .setFooter({ text: 'Dùng .danhhieu chon <tên danh hiệu> để thay đổi' });
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    if (command === 'mohopqua' || command === 'moquabimat') {
+        if ((userData.giftboxes || 0) <= 0) return message.reply('❌ Bạn không có Hộp Quà nào để mở! (Nhận hộp quà khi lên các mốc cấp độ chia hết cho 5).');
+        
+        userData.giftboxes -= 1;
+        const rewardCoins = 200000;
+        userData.coins = (userData.coins || 0) + rewardCoins;
+        queueSave();
+
+        return message.reply(`🎉 Bạn đã mở 1 Hộp Quà bí mật và nhận được phần thưởng: **${formatVND(rewardCoins)}**! 🎁`);
+    }
+
+    if (command === 'cap' || command === 'rank' || command === 'profile') {
+        try {
+            const canvas = Canvas.createCanvas(930, 280);
+            const ctx = canvas.getContext('2d');
+
+            const bgGrad = ctx.createLinearGradient(0, 0, 930, 280);
+            bgGrad.addColorStop(0, '#1E1B2E');
+            bgGrad.addColorStop(1, '#2D2640');
+            ctx.fillStyle = bgGrad;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 930, 280, 24);
+            ctx.fill();
+
+            // Avatar
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(110, 140, 75, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.clip();
+            try {
+                const avatar = await Canvas.loadImage(message.author.displayAvatarURL({ extension: 'png', size: 256 }));
+                ctx.drawImage(avatar, 35, 65, 150, 150);
+            } catch (e) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(35, 65, 150, 150);
+            }
+            ctx.restore();
+
+            // Khung viền avatar
+            ctx.strokeStyle = '#C084FC';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(110, 140, 75, 0, Math.PI * 2, true);
+            ctx.stroke();
+
+            // Tên người dùng & Danh hiệu
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 26px sans-serif';
+            ctx.fillText(message.author.username, 210, 75);
+
+            ctx.fillStyle = '#F472B6';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillText(`✨ [ ${userData.title || getTitleForLevel(userData.level)} ]`, 210, 105);
+
+            // Thanh tiến trình EXP
+            const currentXp = userData.xp || 0;
+            const requiredXp = getXpForNextLevel(userData.level);
+            const progress = Math.min(1, currentXp / requiredXp);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath();
+            ctx.roundRect(210, 140, 660, 24, 12);
+            ctx.fill();
+
+            ctx.fillStyle = '#A78BFA';
+            ctx.beginPath();
+            ctx.roundRect(210, 140, Math.max(24, 660 * progress), 24, 12);
+            ctx.fill();
+
+            // Thông số cấp độ & tiền tệ
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText(`Cấp: ${userData.level || 0}`, 210, 205);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#34D399';
+            ctx.fillText(`EXP: ${currentXp} / ${requiredXp}`, 870, 205);
+
+            ctx.fillStyle = '#FBBF24';
+            ctx.fillText(`Ví: ${formatVND(userData.coins || 0)}`, 870, 238);
 
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'profile.png' });
             return message.channel.send({ files: [attachment] });
         } catch (err) {
-            return message.reply(`📊 **${targetUser.username}** — Cấp: **${uData.level}** | EXP: **${uData.xp}/${requiredXp}** | Ví: **${uData.coins || 0} SWC**\n${petInfoText}`);
+            console.error(err);
+            return message.reply(`📊 **${message.author.username}** — Cấp: ${userData.level} | EXP: ${userData.xp}/${getXpForNextLevel(userData.level)} | Ví: ${formatVND(userData.coins || 0)}`);
         }
     }
 });
