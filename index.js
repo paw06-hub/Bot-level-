@@ -78,13 +78,13 @@ const cooldowns = new Map();
 const voiceStates = new Map();
 const guildInvites = new Map();
 
-// --- HỆ THỐNG 100 DANH HIỆU TIẾN HÓA THEO CẤP ĐỘ ---
+// --- HỆ THỐNG 100 DANH HIỆU TÂN THỦ ---
 const LEVEL_TITLES = {
     1: "Tân Thủ Mới Nhập Môn", 2: "Người Lữ Hành Nhỏ", 3: "Học Viên Tập Sự", 4: "Kẻ Săn Đêm Nhỏ", 5: "Người Thám Hiểm Lớn",
     6: "Tập Sự Đột Phá", 7: "Tay Mơ Tập Sự", 8: "Hiệp Sĩ Tập Sự", 9: "Pháp Sư Tập Sự", 10: "Chiến Binh Sơ Cấp",
     11: "Hiệp Sĩ Sơ Cấp", 12: "Pháp Sư Sơ Cấp", 13: "Đạo Sĩ Sơ Cấp", 14: "Xạ Thủ Sơ Cấp", 15: "Sơ Cấp Cường Giả",
     16: "Người Gác Cổng", 17: "Người Dẫn Đường", 18: "Kẻ Phiêu Lưu", 19: "Lãng Khách Tự Do", 20: "Chiến Binh Trung Cấp",
-    21: "Hiệp Sĩ Trung C급", 22: "Pháp Sư Trung Cấp", 23: "Đạo Sĩ Trung Cấp", 24: "Xạ Thủ Trung Cấp", 25: "Trung Cấp Cường Giả",
+    21: "Hiệp Sĩ Trung Cấp", 22: "Pháp Sư Trung Cấp", 23: "Đạo Sĩ Trung Cấp", 24: "Xạ Thủ Trung Cấp", 25: "Trung Cấp Cường Giả",
     26: "Kiếm Khách Tập Sự", 27: "Kiếm Khách Sơ Cấp", 28: "Kiếm Khách Trung Cấp", 29: "Cao Thủ Tập Sự", 30: "Chiến Binh Cao Cấp",
     31: "Hiệp Sĩ Cao Cấp", 32: "Pháp Sư Cao Cấp", 33: "Đạo Sĩ Cao Cấp", 34: "Xạ Thủ Cao Cấp", 35: "Cao Cấp Cường Giả",
     36: "Bậc Thầy Tập Sự", 37: "Bậc Thầy Sơ Cấp", 38: "Bậc Thầy Trung Cấp", 39: "Bậc Thầy Cao Cấp", 40: "Hiền Giả Sơ Cấp",
@@ -97,16 +97,14 @@ const LEVEL_TITLES = {
     71: "Kẻ Mộng Mơ", 72: "Người Xây Tổ Ấm", 73: "Thủ Lĩnh Xóm", 74: "Bá Chủ Kênh Chat", 75: "Ngôi Sao Sáng Nhất",
     76: "Thần Tượng Server", 77: "Huyền Thoại Sống", 78: "Biểu Tượng Tươi Vui", 79: "Nguồn Năng Lượng Xanh", 80: "Bậc Thầy Truyền Cảm Hứng",
     81: "Bảo Hộ Viên Sơ Cấp", 82: "Bảo Hộ Viên Cao Cấp", 83: "Sứ Giả Hòa Bình", 84: "Thiên Sứ May Mắn", 85: "Thần Hộ Mệnh Server",
-    86: "Cột Chỗ Dựa Vững Chắc", 87: "Người Giữ Lửa Server", 88: "Cây Đại Thụ Xanh Mát", 89: "Tượng Đài Vĩnh Cửu", 90: "Huyền Thoại Bất灭",
+    86: "Cột Chỗ Dựa Vững Chắc", 87: "Người Giữ Lửa Server", 88: "Cây Đại Thụ Xanh Mát", 89: "Tượng Đài Vĩnh Cửu", 90: "Huyền Thoại Bất Diệt",
     91: "Cội Nguồn Tri Thức", 92: "Bậc Trưởng Làng", 93: "Trùm Cuối Server", 94: "Chủ Nhân Tối Cao", 95: "Đấng Tối Cao Dễ Thương",
     96: "Huyền Thoại Của Mọi Thời Đại", 97: "Kỷ Nguyên Mới Vẻ Vang", 98: "Vô Song Hào Quang", 99: "Đỉnh Cao Vô Nhị", 100: "Huyền Thoại Tối Thượng Swan"
 };
 
-// --- HỆ THỐNG CẢNH GIỚI TU TIÊN (TÁCH BIỆT HOÀN TOÀN LEVEL CHAT) ---
+// --- HỆ THỐNG CẢNH GIỚI TU TIÊN ---
 const CULTIVATION_REALMS = [
     { level: 0, name: "Phàm Nhân", requiredTuVi: 0 },
-    
-    // Cấp 1 -> 9 (Cơ bản)
     { level: 1, name: "Luyện Khí Kỳ", nameMa: "Luyện Huyết Kỳ", requiredTuVi: 300 },
     { level: 2, name: "Trúc Cơ Kỳ", nameMa: "Phệ Hồn Kỳ", requiredTuVi: 800 },
     { level: 3, name: "Kim Đan Kỳ", nameMa: "Quỷ Đan Kỳ", requiredTuVi: 2000 },
@@ -115,39 +113,9 @@ const CULTIVATION_REALMS = [
     { level: 6, name: "Luyện Hư Kỳ", nameMa: "Luyện Ma Kỳ", requiredTuVi: 20000 },
     { level: 7, name: "Hợp Thể Kỳ", nameMa: "Phệ Thể Kỳ", requiredTuVi: 35000 },
     { level: 8, name: "Đại Thừa Kỳ", nameMa: "Ma Thừa Kỳ", requiredTuVi: 60000 },
-    { level: 9, name: "Độ Kiếp Thánh Nhân", nameMa: "Diệt Thế Ma Tôn", requiredTuVi: 100000 },
-
-    // 27 Cấp độ mở rộng cao cấp (Chính vs Ma)
-    { level: 10, name: "Chân Tiên Kỳ", nameMa: "Chân Ma Kỳ", requiredTuVi: 150000 },
-    { level: 11, name: "Huyền Tiên Kỳ", nameMa: "U Minh Tiên", requiredTuVi: 212500 },
-    { level: 12, name: "Kim Tiên Kỳ", nameMa: "Sát Lục Kim Tiên", requiredTuVi: 290625 },
-    { level: 13, name: "Thái Ất Chân Tiên", nameMa: "Thái Ất Ma Tiên", requiredTuVi: 388281 },
-    { level: 14, name: "Thái Ất Huyền Tiên", nameMa: "Huyết Hải Huyền Tiên", requiredTuVi: 510351 },
-    { level: 15, name: "Thái Ất Kim Tiên", nameMa: "Vạn Tượng Ma Tôn", requiredTuVi: 662938 },
-    { level: 16, name: "Đại Lục Chân Tiên", nameMa: "Cửu U Ma Quân", requiredTuVi: 853671 },
-    { level: 17, name: "Đại La Kim Tiên", nameMa: "Đại La Sát Tinh", requiredTuVi: 1092087 },
-    { level: 18, name: "Hỗn Nguyên Kim Tiên", nameMa: "Hỗn Nguyên Ma Tổ", requiredTuVi: 1390107 },
-    { level: 19, name: "Tiên Vương Kỳ", nameMa: "Ma Vương Kỳ", requiredTuVi: 1762632 },
-    { level: 20, name: "Tiên Tôn Kỳ", nameMa: "Ma Tôn Kỳ", requiredTuVi: 2228288 },
-    { level: 21, name: "Tiên Đế Kỳ", nameMa: "Ma Đế Kỳ", requiredTuVi: 2810358 },
-    { level: 22, name: "Chuẩn Thánh Kỳ", nameMa: "Chuẩn Ma Thánh", requiredTuVi: 3537945 },
-    { level: 23, name: "Á Thánh Kỳ", nameMa: "U Minh Á Thánh", requiredTuVi: 4447428 },
-    { level: 24, name: "Hỗn Nguyên Đại La Kim Tiên", nameMa: "Hỗn Nguyên Phệ Thiên Ma", requiredTuVi: 5584281 },
-    { level: 25, name: "Đạo Cảnh Nhập Môn", nameMa: "Ma Đạo Nhập Môn", requiredTuVi: 7005347 },
-    { level: 26, name: "Đạo Cảnh Tiểu Thành", nameMa: "Ma Đạo Tiểu Thành", requiredTuVi: 8781679 },
-    { level: 27, name: "Đạo Cảnh Đại Thành", nameMa: "Ma Đạo Đại Thành", requiredTuVi: 11002094 },
-    { level: 28, name: "Chân Ngã Cảnh", nameMa: "Ma Ngã Cảnh", requiredTuVi: 13777612 },
-    { level: 29, name: "Tự Tại Cảnh", nameMa: "Cuồng Ma Tự Tại", requiredTuVi: 17247009 },
-    { level: 30, name: "Vĩnh Hằng Cảnh", nameMa: "Hắc Ám Vĩnh Hằng", requiredTuVi: 21583755 },
-    { level: 31, name: "Bất Hủ Cảnh", nameMa: "Ma Hồn Bất Hủ", requiredTuVi: 27004687 },
-    { level: 32, name: "Hỗn Độn Cảnh", nameMa: "Hỗn Độn Ma Uy", requiredTuVi: 33780852 },
-    { level: 33, name: "Hư Vô Cảnh", nameMa: "Diệt Thế Hư Vô", requiredTuVi: 42251058 },
-    { level: 34, name: "Sáng Thế Cảnh", nameMa: "Diệt Thế Sáng Thế", requiredTuVi: 52838815 },
-    { level: 35, name: "Đạo Nguyên Cảnh", nameMa: "Ma Nguyên Cảnh", requiredTuVi: 66073511 },
-    { level: 36, name: "Chí Tôn Vô Thượng", nameMa: "Vô Thượng Ma Chủ", requiredTuVi: 82616881 }
+    { level: 9, name: "Độ Kiếp Thánh Nhân", nameMa: "Diệt Thế Ma Tôn", requiredTuVi: 100000 }
 ];
 
-// --- HỆ THỐNG ĐỘ HIẾM & DANH SÁCH PET ---
 const PET_RARITIES = {
     COMMON: { name: 'Thường', color: '#B0C4DE', rate: 0.50, multiplier: 1 },
     RARE: { name: 'Hiếm', color: '#1E90FF', rate: 0.30, multiplier: 1.2 },
@@ -170,34 +138,19 @@ function getRandomPetByGacha() {
     const rand = Math.random();
     let cumulative = 0;
     let selectedRarity = 'COMMON';
-    
     for (const [key, val] of Object.entries(PET_RARITIES)) {
         cumulative += val.rate;
-        if (rand <= cumulative) {
-            selectedRarity = key;
-            break;
-        }
+        if (rand <= cumulative) { selectedRarity = key; break; }
     }
-
-    const availableSpecies = PET_SPECIES.filter(p => {
-        if (selectedRarity === 'MYTHIC') return p.baseRarity === 'MYTHIC' || p.baseRarity === 'LEGENDARY';
-        if (selectedRarity === 'LEGENDARY') return p.baseRarity === 'LEGENDARY' || p.baseRarity === 'EPIC';
-        return p.baseRarity === selectedRarity || p.baseRarity === 'COMMON';
-    });
-
+    const availableSpecies = PET_SPECIES.filter(p => p.baseRarity === selectedRarity || p.baseRarity === 'COMMON');
     const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)] || PET_SPECIES[0];
-    
     return {
         id: `pet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         name: `${species.icon}${species.name}`,
         speciesName: species.name,
         icon: species.icon,
         rarity: selectedRarity,
-        level: 1,
-        exp: 0,
-        hunger: 100,
-        affection: 50,
-        createdAt: Date.now()
+        level: 1, exp: 0, hunger: 100, affection: 50, createdAt: Date.now()
     };
 }
 
@@ -209,30 +162,22 @@ function getTitleForLevel(level) {
 function checkLevelTitles(userData) {
     if (!userData.unlockedTitles) userData.unlockedTitles = [LEVEL_TITLES[1]];
     let newlyUnlocked = [];
-    
     const maxCheck = Math.min(userData.level, 100);
     for (let i = 1; i <= maxCheck; i++) {
-        if (LEVEL_TITLES[i]) {
-            const titleName = LEVEL_TITLES[i];
-            if (!userData.unlockedTitles.includes(titleName)) {
-                userData.unlockedTitles.push(titleName);
-                newlyUnlocked.push(titleName);
-            }
+        if (LEVEL_TITLES[i] && !userData.unlockedTitles.includes(LEVEL_TITLES[i])) {
+            userData.unlockedTitles.push(LEVEL_TITLES[i]);
+            newlyUnlocked.push(LEVEL_TITLES[i]);
         }
     }
-
-    if (userData.level > 100) {
-        const infinityTitle = "Swan Vô Cực";
-        if (!userData.unlockedTitles.includes(infinityTitle)) {
-            userData.unlockedTitles.push(infinityTitle);
-            newlyUnlocked.push(infinityTitle);
-        }
-    }
-
     return newlyUnlocked;
 }
 
-// --- 3. CƠ CHẾ QUẢN LÝ DỮ LIỆU ---
+// --- HÀM ĐỊNH DẠNG VNĐ ---
+function formatVND(amount) {
+    if (amount === undefined || isNaN(amount)) amount = 0;
+    return new Intl.NumberFormat('vi-VN').format(amount) + ' VNĐ';
+}
+
 let memoryDb = {};
 let saveTimeout = null;
 
@@ -241,57 +186,34 @@ function loadData() {
         fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2));
         return {};
     }
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch (err) {
-        console.error('Lỗi đọc file data:', err);
-        return {};
-    }
+    try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (err) { return {}; }
 }
 
 function queueSave() {
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
-        try {
-            await fsPromises.writeFile(DATA_FILE, JSON.stringify(memoryDb, null, 2));
-        } catch (err) {
-            console.error('Lỗi lưu dữ liệu:', err);
-        }
+        try { await fsPromises.writeFile(DATA_FILE, JSON.stringify(memoryDb, null, 2)); } catch (err) {}
     }, 3000);
 }
 
-function getXpForNextLevel(level) {
-    return 150 * (level + 1);
-}
+function getXpForNextLevel(level) { return 150 * (level + 1); }
 
 function initGuild(guildId) {
     if (!memoryDb[guildId]) {
         memoryDb[guildId] = {
             config: { 
-                logChannel: null, 
-                noXpChannels: [], 
-                admins: ['1298727049451540541'], 
+                logChannel: null, noXpChannels: [], admins: ['1298727049451540541'], 
                 shopItems: [
-                    { id: 1, name: 'Thẻ X1 EXP (1 giờ)', price: 200, stock: 50, type: 'boost', multiplier: 1 },
-                    { id: 2, name: 'Thẻ X2 EXP (1 giờ)', price: 450, stock: 40, type: 'boost', multiplier: 2 },
-                    { id: 3, name: 'Thẻ X3 EXP (1 giờ)', price: 800, stock: 30, type: 'boost', multiplier: 3 },
-                    { id: 4, name: 'Thẻ X4 EXP (1 giờ)', price: 1300, stock: 25, type: 'boost', multiplier: 4 },
-                    { id: 5, name: 'Thẻ X5 EXP (1 giờ)', price: 2000, stock: 20, type: 'boost', multiplier: 5 },
-                    { id: 6, name: 'Thẻ Thức Ăn Pet (x5)', price: 150, stock: 100, type: 'pet_food', amount: 5 }
+                    { id: 1, name: 'Thẻ X1 EXP (1 giờ)', price: 200000, stock: 50, type: 'boost', multiplier: 1 },
+                    { id: 2, name: 'Thẻ X2 EXP (1 giờ)', price: 450000, stock: 40, type: 'boost', multiplier: 2 },
+                    { id: 3, name: 'Thẻ Thức Ăn Pet (x5)', price: 150000, stock: 100, type: 'pet_food', amount: 5 }
                 ],
-                marketplace: [],
-                petMarketplace: []
+                marketplace: [], petMarketplace: []
             },
             users: {}
         };
     }
     if (!memoryDb[guildId].config.admins) memoryDb[guildId].config.admins = ['1298727049451540541'];
-    if (!memoryDb[guildId].config.marketplace) memoryDb[guildId].config.marketplace = [];
-    if (!memoryDb[guildId].config.petMarketplace) memoryDb[guildId].config.petMarketplace = [];
-    
-    memoryDb[guildId].config.shopItems.forEach(item => {
-        if (item.stock === undefined) item.stock = 30;
-    });
 }
 
 function initUser(guildId, userId) {
