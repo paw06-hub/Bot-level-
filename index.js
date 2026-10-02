@@ -1901,14 +1901,13 @@ client.on('messageCreate', async (message) => {
         return message.reply(`✅ Đã chuyển thành công **${formatVND(amount)}** cho ${targetUser.tag}! 💸`);
     }
 
-        if (command === 'tuido' || command === 'inventory') {
+            if (command === 'tuido' || command === 'inventory') {
         try {
             const inventoryList = userData.inventory || [];
             const canvasHeight = Math.max(600, 150 + (inventoryList.length * 75));
             const canvas = Canvas.createCanvas(900, canvasHeight);
             const ctx = canvas.getContext('2d');
 
-            // --- Tạo nền gradient hiện đại ---
             const bgGrad = ctx.createLinearGradient(0, 0, 900, canvasHeight);
             bgGrad.addColorStop(0, '#1E1B2E'); 
             bgGrad.addColorStop(1, '#0F0E17');
@@ -1917,15 +1916,14 @@ client.on('messageCreate', async (message) => {
             ctx.roundRect(0, 0, 900, canvasHeight, 28); 
             ctx.fill();
 
-            // --- Tiêu đề ---
             ctx.fillStyle = '#FFFFFF'; 
             ctx.font = 'bold 32px sans-serif';
             ctx.fillText(`TÚI ĐỒ CÁ NHÂN`, 65, 55);
 
-            ctx.fillStyle = '#C084FC'; 
+            ctx.fillStyle = '#FACC15'; 
             ctx.font = 'bold 20px sans-serif'; 
             ctx.textAlign = 'right';
-            ctx.fillText(`Thức ăn pet: ${userData.petFood || 0} cái`, 830, 55); 
+            ctx.fillText(`Ví: ${formatVND(userData.coins || 0)}`, 830, 55); 
             ctx.textAlign = 'left';
 
             if (inventoryList.length === 0) {
@@ -1938,23 +1936,19 @@ client.on('messageCreate', async (message) => {
                 for (let i = 0; i < inventoryList.length; i++) {
                     const item = inventoryList[i];
                     
-                    // Khung item dạng bo góc, không icon
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
                     ctx.beginPath(); 
                     ctx.roundRect(40, startY, 820, 60, 18); 
                     ctx.fill();
 
-                    // Số thứ tự
                     ctx.fillStyle = '#C084FC'; 
                     ctx.font = 'bold 20px sans-serif';
                     ctx.fillText(`#${i + 1}`, 65, startY + 38);
 
-                    // Tên vật phẩm
                     ctx.fillStyle = '#FFFFFF'; 
                     ctx.font = 'bold 18px sans-serif';
                     ctx.fillText(item.name, 150, startY + 38);
 
-                    // Loại vật phẩm hoặc số lượng
                     ctx.fillStyle = '#34D399'; 
                     ctx.font = 'bold 16px sans-serif';
                     ctx.fillText(`Loại: ${item.type || 'Vật phẩm'}`, 520, startY + 38);
@@ -1970,6 +1964,7 @@ client.on('messageCreate', async (message) => {
             return message.reply('❌ Có lỗi khi tạo ảnh túi đồ!');
         }
     }
+
 
     if (command === 'sd' || command === 'use') {
         const index = parseInt(args[0]) - 1;
