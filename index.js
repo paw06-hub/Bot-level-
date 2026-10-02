@@ -79,27 +79,28 @@ const voiceStates = new Map();
 const guildInvites = new Map();
 
 // --- HỆ THỐNG 100 DANH HIỆU TIẾN HÓA THEO CẤP ĐỘ ---
+// --- HỆ THỐNG 100 DANH HIỆU PHONG CÁCH TÂN THỦ ---
 const LEVEL_TITLES = {
-    1: "Swan Cung Nhân", 2: "Swan Cung Nữ", 3: "Swan Thị Nữ", 4: "Swan Cung Tỳ", 5: "Swan Nội Nhân",
-    6: "Swan Cung Quan", 7: "Swan Chưởng Sự", 8: "Swan Điển Nghi", 9: "Swan Nội Quan", 10: "Swan Ngự Tiền",
-    11: "Swan Tiểu Thái Giám", 12: "Swan Thái Giám", 13: "Swan Chưởng Ấn", 14: "Swan Nội Giám", 15: "Swan Tổng Quản",
-    16: "Swan Tiểu Thị Vệ", 17: "Swan Thị Vệ", 18: "Swan Cận Vệ", 19: "Swan Ngự Vệ", 20: "Swan Điện Vệ",
-    21: "Swan Cấm Vệ", 22: "Swan Cấm Quân", 23: "Swan Thống Vệ", 24: "Swan Đô Vệ", 25: "Swan Đại Nội Thị Vệ",
-    26: "Swan Võ Sinh", 27: "Swan Võ Quan", 28: "Swan Giáo Úy", 29: "Swan Đô Úy", 30: "Swan Thiên Hộ",
-    31: "Swan Phó Tướng", 32: "Swan Tướng Quân", 33: "Swan Đô Thống", 34: "Swan Đô Đốc", 35: "Swan Đại Đô Đốc",
-    36: "Swan Phiêu Kỵ", 37: "Swan Vệ Tướng", 38: "Swan Đại Tướng", 39: "Swan Trấn Quân", 40: "Swan Đại Nguyên Soái",
-    41: "Swan Học Sĩ", 42: "Swan Ngự Sử", 43: "Swan Lang Trung", 44: "Swan Thị Lang", 45: "Swan Đại Phu",
-    46: "Swan Khanh", 47: "Swan Thượng Khanh", 48: "Swan Cửu Khanh", 49: "Swan Đại Học Sĩ", 50: "Swan Thượng Thư",
-    51: "Swan Đại Tư Mã", 52: "Swan Đại Tư Không", 53: "Swan Đại Tư Đồ", 54: "Swan Quốc Sư", 55: "Swan Thừa Tướng",
-    56: "Swan Đáp Ứng", 57: "Swan Thường Tại", 58: "Swan Quý Nhân", 59: "Swan Tài Nhân", 60: "Swan Mỹ Nhân",
-    61: "Swan Tiệp Dư", 62: "Swan Chiêu Nghi", 63: "Swan Chiêu Dung", 64: "Swan Tu Dung", 65: "Swan Uyển Nghi",
-    66: "Swan Quý Tần", 67: "Swan Thục Tần", 68: "Swan Đức Tần", 69: "Swan Hiền Tần", 70: "Swan Lệ Phi",
-    71: "Swan Thục Phi", 72: "Swan Đức Phi", 73: "Swan Hiền Phi", 74: "Swan Quý Phi", 75: "Swan Hoàng Quý Phi",
-    76: "Swan Hoàng Hậu", 77: "Swan Trung Cung", 78: "Swan Mẫu Nghi", 79: "Swan Quốc Mẫu", 80: "Swan Hoàng Thái Hậu",
-    81: "Swan Thái Hoàng Thái Hậu", 82: "Swan Hoàng Tổ Mẫu", 83: "Swan Hoàng Thân", 84: "Swan Quận Vương", 85: "Swan Thân Vương",
-    86: "Swan Vương Gia", 87: "Swan Đại Vương", 88: "Swan Hoàng Tôn", 89: "Swan Thái Tử", 90: "Swan Trữ Quân",
-    91: "Swan Nhiếp Chính Vương", 92: "Swan Thái Thượng Hoàng", 93: "Swan Hoàng Gia", 94: "Swan Hoàng Tộc", 95: "Swan Thiên Gia",
-    96: "Swan Ngự Quyền", 97: "Swan Hoàng Quyền", 98: "Swan Cửu Ngũ", 99: "Swan Thiên Tử", 100: "Swan Hoàng Đế"
+    1: "Tân Thủ Mới Nhập Môn", 2: "Người Lữ Hành Nhỏ", 3: "Học Viên Tập Sự", 4: "Kẻ Săn Đêm Nhỏ", 5: "Người Thám Hiểm Lớn",
+    6: "Tập Sự Đột Phá", 7: "Tay Mơ Tập Sự", 8: "Hiệp Sĩ Tập Sự", 9: "Pháp Sư Tập Sự", 10: "Chiến Binh Sơ Cấp",
+    11: "Hiệp Sĩ Sơ Cấp", 12: "Pháp Sư Sơ Cấp", 13: "Đạo Sĩ Sơ Cấp", 14: "Xạ Thủ Sơ Cấp", 15: "Sơ Cấp Cường Giả",
+    16: "Người Gác Cổng", 17: "Người Dẫn Đường", 18: "Kẻ Phiêu Lưu", 19: "Lãng Khách Tự Do", 20: "Chiến Binh Trung Cấp",
+    21: "Hiệp Sĩ Trung C급", 22: "Pháp Sư Trung Cấp", 23: "Đạo Sĩ Trung Cấp", 24: "Xạ Thủ Trung Cấp", 25: "Trung Cấp Cường Giả",
+    26: "Kiếm Khách Tập Sự", 27: "Kiếm Khách Sơ Cấp", 28: "Kiếm Khách Trung Cấp", 29: "Cao Thủ Tập Sự", 30: "Chiến Binh Cao Cấp",
+    31: "Hiệp Sĩ Cao Cấp", 32: "Pháp Sư Cao Cấp", 33: "Đạo Sĩ Cao Cấp", 34: "Xạ Thủ Cao Cấp", 35: "Cao Cấp Cường Giả",
+    36: "Bậc Thầy Tập Sự", 37: "Bậc Thầy Sơ Cấp", 38: "Bậc Thầy Trung Cấp", 39: "Bậc Thầy Cao Cấp", 40: "Hiền Giả Sơ Cấp",
+    41: "Hiền Giả Trung Cấp", 42: "Hiền Giả Cao Cấp", 43: "Đại Sư Tập Sự", 44: "Đại Sư Sơ Cấp", 45: "Đại Sư Trung Cấp",
+    46: "Đại Sư Cao Cấp", 47: "Tông Sư Tập Sự", 48: "Tông Sư Sơ Cấp", 49: "Tông Sư Trung Cấp", 50: "Đại Tông Sư",
+    51: "Thần Tượng Tập Sự", 52: "Ngôi Sao Mới Nổi", 53: "Thần Đồng Chat", 54: "Thánh Sống Chăm Chỉ", 55: "Cú Đêm Sơ Cấp",
+    56: "Cú Đêm Trung Cấp", 57: "Cú Đêm Cao Cấp", 58: "Thánh Lười Sơ Cấp", 59: "Thánh Lười Cao Cấp", 60: "Thần Hướng Nội",
+    61: "Chuyên Gia Hóng Biến", 62: "Thánh Chém Gió", 63: "Bậc Thầy Tán Gẫu", 64: "Huyền Thoại Chat", 65: "Quán Quân Tám Chuyện",
+    66: "Hiệp Sĩ Bàn Phím", 67: "Chúa Tể Emoji", 68: "Vua Sticker", 69: "Hoàng Tử Thả Thính", 70: "Công Chúa Ngọt Ngào",
+    71: "Kẻ Mộng Mơ", 72: "Người Xây Tổ Ấm", 73: "Thủ Lĩnh Xóm", 74: "Bá Chủ Kênh Chat", 75: "Ngôi Sao Sáng Nhất",
+    76: "Thần Tượng Server", 77: "Huyền Thoại Sống", 78: "Biểu Tượng Tươi Vui", 79: "Nguồn Năng Lượng Xanh", 80: "Bậc Thầy Truyền Cảm Hứng",
+    81: "Bảo Hộ Viên Sơ Cấp", 82: "Bảo Hộ Viên Cao Cấp", 83: "Sứ Giả Hòa Bình", 84: "Thiên Sứ May Mắn", 85: "Thần Hộ Mệnh Server",
+    86: "Cột Chỗ Dựa Vững Chắc", 87: "Người Giữ Lửa Server", 88: "Cây Đại Thụ Xanh Mát", 89: "Tượng Đài Vĩnh Cửu", 90: "Huyền Thoại Bất灭",
+    91: "Cội Nguồn Tri Thức", 92: "Bậc Trưởng Làng", 93: "Trùm Cuối Server", 94: "Chủ Nhân Tối Cao", 95: "Đấng Tối Cao Dễ Thương",
+    96: "Huyền Thoại Của Mọi Thời Đại", 97: "Kỷ Nguyên Mới Vẻ Vang", 98: "Vô Song Hào Quang", 99: "Đỉnh Cao Vô Nhị", 100: "Huyền Thoại Tối Thượng Swan"
 };
 
 // --- HỆ THỐNG CẢNH GIỚI TU TIÊN (TÁCH BIỆT HOÀN TOÀN LEVEL CHAT) ---
