@@ -331,7 +331,7 @@ const HELP_CATEGORIES = [
         description: 'Hướng dẫn nhanh, tiền tệ và quy tắc sử dụng bot...',
         emoji: '📖',
         title: '❀ 𝐎𝐯𝐞𝐫𝐯𝐢𝐞𝐰 & 𝐐𝐮𝐢𝐜𝐤 𝐆𝐮𝐢𝐝𝐞 ❀',
-        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫️ **SwanCoin (SWC):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
+        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫️️ **SwanCoin (SWC):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
     },
     {
         id: 'cat_tutiens',
@@ -1413,7 +1413,7 @@ client.on('messageCreate', async (message) => {
         targetUserData.cultivation.tuvi = newTuVi;
         queueSave();
 
-        return message.reply(`☯️️ Đã thiết lập lại điểm tu vi hiện tại của ${targetUser} thành **${newTuVi}** điểm tu vi.`);
+        return message.reply(`☯ Đã thiết lập lại điểm tu vi hiện tại của ${targetUser} thành **${newTuVi}** điểm tu vi.`);
     }
 
         // 4. .setcanhgioi @User <Số cảnh giới thứ tự>
@@ -1444,7 +1444,7 @@ client.on('messageCreate', async (message) => {
             .setColor(isEvil ? '#8B0000' : '#00FF7F')
             .setTitle('☯️ THAY ĐỔI CẢNH GIỚI TU TIÊN')
             .setDescription(`Admin **${message.author.username}** đã trực tiếp điều chỉnh cảnh giới tu tiên cho ${targetUser}!\n\n` +
-                `🏔️ Cảnh giới mới: **${displayRealmName}** (Cấp ${realmIndex} - ${isEvil ? 'Ma Đạo' : 'Chính Đạo'})\n` +
+                `🏔️ Cảnh giới mới: **${displayRealmName}** (Cấp ${realmIndex} -${isEvil ? 'Ma Đạo' : 'Chính Đạo'})\n` +
                 `⚡ Chiến lực điều chỉnh: **${targetUserData.cultivation.power}**`);
 
         return message.channel.send({ embeds: [embed] });
@@ -1713,7 +1713,73 @@ client.on('messageCreate', async (message) => {
         return message.reply(`Bạn đã mua thành công **"${listing.itemName}"** với giá **${listing.price} SWC**.${freeNotice}`);
     }
 
-        if (command === 'shop' || command === 'cuahang') {
+    // --- LỆNH .bxh (ĐÃ SỬA LỖI & TÍCH HỢP) ---
+    if (command === 'bxh' || command === 'leaderboard') {
+        try {
+            initGuild(guildId);
+            const usersObj = memoryDb[guildId].users || {};
+            
+            const sortedUsers = Object.entries(usersObj)
+                .map(([id, data]) => ({ id, ...data }))
+                .sort((a, b) => (b.level - a.level) || (b.xp - a.xp))
+                .slice(0, 10);
+
+            const canvas = Canvas.createCanvas(900, 700);
+            const ctx = canvas.getContext('2d');
+
+            const bgGrad = ctx.createLinearGradient(0, 0, 900, 700);
+            bgGrad.addColorStop(0, '#1E1B2E'); 
+            bgGrad.addColorStop(1, '#0F0E17');
+            ctx.fillStyle = bgGrad;
+            ctx.beginPath(); 
+            ctx.roundRect(0, 0, 900, 700, 28); 
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF'; 
+            ctx.font = 'bold 32px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`🏆 BẢNG XẾP HẠNG CẤP ĐỘ SERVER`, 450, 65);
+
+            let startY = 110;
+            for (let i = 0; i < sortedUsers.length; i++) {
+                const u = sortedUsers[i];
+                let memberTag = `User ID: ${u.id}`;
+                try {
+                    const fetchedMember = await message.guild.members.fetch(u.id);
+                    memberTag = fetchedMember.user.username;
+                } catch (e) {}
+
+                ctx.fillStyle = i === 0 ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+                ctx.beginPath(); 
+                ctx.roundRect(50, startY, 800, 50, 14); 
+                ctx.fill();
+
+                ctx.fillStyle = i === 0 ? '#FFD700' : (i === 1 ? '#C0C0C0' : (i === 2 ? '#CD7F32' : '#E2E8F0'));
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`#${i + 1}`, 75, startY + 32);
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.fillText(memberTag.length > 20 ? memberTag.substring(0, 20) + '...' : memberTag, 135, startY + 32);
+
+                ctx.fillStyle = '#C084FC';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Cấp ${u.level \vert{}\vert{} 0} \vert{}${u.coins || 0} SWC`, 820, startY + 32);
+
+                startY += 58;
+            }
+
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'leaderboard.png' });
+            return message.channel.send({ files: [attachment] });
+        } catch (error) {
+            console.error(error);
+            return message.reply('❌ Có lỗi khi tạo bảng xếp hạng Canvas!');
+        }
+    }
+
+    // --- LỆNH .shop (ĐÃ CẢI THIỆN MÀU SẮC RÕ RÀNG) ---
+    if (command === 'shop' || command === 'cuahang') {
         try {
             const currentShop = guildConfig.shopItems || [];
             const canvasHeight = Math.max(600, 150 + (currentShop.length * 75));
@@ -1744,7 +1810,6 @@ client.on('messageCreate', async (message) => {
             for (let i = 0; i < currentShop.length; i++) {
                 const item = currentShop[i];
                 
-                // Khung nền item rõ hơn
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
                 ctx.beginPath(); 
                 ctx.roundRect(40, startY, 820, 60, 18); 
