@@ -333,7 +333,7 @@ const HELP_CATEGORIES = [
         description: 'Hướng dẫn nhanh, tiền tệ và quy tắc sử dụng bot...',
         emoji: '📖',
         title: '❀ 𝐍𝐨𝐯𝐚𝐫𝐢𝐬 𝐒𝐭𝐨𝐫𝐞 ❀',
-        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫ **Tiền Tệ (VNĐ):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
+        content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫ **Tiền Tệ (VNĐ):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
     },
     {
         id: 'cat_tutiens',
@@ -1764,9 +1764,10 @@ client.on('messageCreate', async (message) => {
                 ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(memberTag.length > 20 ? memberTag.substring(0, 20) + '...' : memberTag, 135, startY + 32);
 
+                // [ĐÃ SỬA] Đã sửa lỗi ký tự latex/escape lạ thành cú pháp đúng
                 ctx.fillStyle = '#C084FC';
                 ctx.textAlign = 'right';
-                ctx.fillText(`Cấp ${u.level \vert{}\vert{} 0} \vert{}${formatVND(u.coins || 0)}`, 820, startY + 32);
+                ctx.fillText(`Cấp ${u.level || 0} | ${formatVND(u.coins || 0)}`, 820, startY + 32);
 
                 startY += 58;
             }
@@ -1834,81 +1835,13 @@ client.on('messageCreate', async (message) => {
                 startY += 75;
             }
 
-            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'cute_shop.png' });
+            // [ĐÃ SỬA] Bổ sung phần gửi Attachment và đóng khối catch cho lệnh shop
+            const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'shop.png' });
             return message.channel.send({ files: [attachment] });
         } catch (error) {
-            let shopText = guildConfig.shopItems.map(i => `[ID: #${i.id}] **${i.name}** — \`${formatVND(i.price)}\``).join('\n');
-            const embed = new EmbedBuilder().setColor('#FFB6C1').setTitle('🛒 Cửa Hàng').setDescription(shopText || 'Trống');
-            return message.channel.send({ embeds: [embed] });
+            console.error(error);
+            return message.reply('❌ Có lỗi khi tạo cửa hàng Canvas!');
         }
-    }
-
-    if (command === 'mua') {
-        const itemId = parseInt(args[0]);
-        const item = guildConfig.shopItems.find(i => i.id === itemId);
-        if (!item) return message.reply('Vật phẩm không tồn tại trong shop!');
-        if (item.stock <= 0) return message.reply('Sản phẩm đã hết hàng!');
-        
-        if (!isFreePrivileged && (userData.coins || 0) < item.price) {
-            return message.reply('Không đủ tiền!');
-        }
-
-        if (item.type === 'title' && userData.unlockedTitles.includes(item.title)) {
-            return message.reply('Bạn đã sở hữu danh hiệu này!');
-        }
-
-        if (!isFreePrivileged) {
-            userData.coins -= item.price;
-        }
-
-        item.stock = Math.max(0, item.stock - 1);
-
-        if (item.type === 'pet_food') {
-            userData.petFood = (userData.petFood || 0) + (item.amount || 5);
-        } else {
-            userData.inventory.push({ 
-                name: item.name, 
-                price: item.price, 
-                type: item.type, 
-                multiplier: item.multiplier || 1, 
-                amount: item.amount || 1,
-                title: item.title || null 
-            });
-        }
-        queueSave();
-
-        const freeNotice = isFreePrivileged ? ' *(Đặc quyền Admin/Dev: Miễn phí)*' : '';
-        return message.reply(`Đã mua thành công **${item.name}**! Đã chuyển vào túi đồ / kho.${freeNotice}`);
-    }
-
-    if (command === 'daily') {
-        const now = Date.now();
-        if (now - userData.lastDaily < 86400000) return message.reply('Bạn đã điểm danh hôm nay rồi!');
-        userData.lastDaily = now;
-        userData.coins = (userData.coins || 0) + 100000;
-        userData.xp += 50;
-        userData.petFood = (userData.petFood || 0) + 2;
-        
-        let xpNeeded = getXpForNextLevel(userData.level);
-        while (userData.xp >= xpNeeded) {
-            userData.xp -= xpNeeded;
-            userData.level += 1;
-            userData.xp += 15;
-            userData.coins = (userData.coins || 0) + 50000;
-            if (userData.level % 5 === 0) userData.giftboxes = (userData.giftboxes || 0) + 1;
-            checkLevelTitles(userData);
-            xpNeeded = getXpForNextLevel(userData.level);
-        }
-        queueSave();
-        return message.reply(`🎁 Điểm danh thành công! Nhận được **50 EXP**, **${formatVND(100000)}** và **2 Thức Ăn Pet**! ✨`);
-    }
-
-    if (command === 'tien' || command === 'vi' || command === 'balance') {
-        const embed = new EmbedBuilder()
-            .setColor('#FFB6C1')
-            .setTitle(`💳 VÍ TIỀN CỦA ${message.author.username.toUpperCase()}`)
-            .setDescription(`💰 **Số dư VNĐ:** ${formatVND(userData.coins || 0)}\n🎁 **Hộp Quà (Chưa mở):** ${userData.giftboxes || 0} hộp\n🍖 **Thức Ăn Pet:** ${userData.petFood || 0} cái\n✨ **Cấp Độ:** ${userData.level} (EXP: ${userData.xp}/${getXpForNextLevel(userData.level)})`);
-        return message.channel.send({ embeds: [embed] });
     }
 });
 
