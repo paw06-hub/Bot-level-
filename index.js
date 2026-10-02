@@ -1713,7 +1713,7 @@ client.on('messageCreate', async (message) => {
         return message.reply(`Bạn đã mua thành công **"${listing.itemName}"** với giá **${listing.price} SWC**.${freeNotice}`);
     }
 
-    if (command === 'shop' || command === 'cuahang') {
+        if (command === 'shop' || command === 'cuahang') {
         try {
             const currentShop = guildConfig.shopItems || [];
             const canvasHeight = Math.max(600, 150 + (currentShop.length * 75));
@@ -1721,30 +1721,56 @@ client.on('messageCreate', async (message) => {
             const ctx = canvas.getContext('2d');
 
             const bgGrad = ctx.createLinearGradient(0, 0, 900, canvasHeight);
-            bgGrad.addColorStop(0, '#1E1B2E'); bgGrad.addColorStop(1, '#0F0E17');
+            bgGrad.addColorStop(0, '#1E1B2E'); 
+            bgGrad.addColorStop(1, '#0F0E17');
             ctx.fillStyle = bgGrad;
-            ctx.beginPath(); ctx.roundRect(0, 0, 900, canvasHeight, 28); ctx.fill();
+            ctx.beginPath(); 
+            ctx.roundRect(0, 0, 900, canvasHeight, 28); 
+            ctx.fill();
 
-            ctx.fillStyle = '#E2E8F0'; ctx.font = 'bold 32px sans-serif';
+            // Tiêu đề shop - Trắng sáng
+            ctx.fillStyle = '#FFFFFF'; 
+            ctx.font = 'bold 32px sans-serif';
             ctx.fillText(`CỬA HÀNG VẬT PHẨM & THỨC ĂN PET`, 65, 55);
 
-            ctx.fillStyle = '#A78BFA'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right';
-            ctx.fillText(`Ví: ${userData.coins || 0} SWC`, 830, 55); ctx.textAlign = 'left';
+            // Số dư ví - Màu vàng sáng dễ thấy
+            ctx.fillStyle = '#FACC15'; 
+            ctx.font = 'bold 20px sans-serif'; 
+            ctx.textAlign = 'right';
+            ctx.fillText(`Ví: ${userData.coins || 0} SWC`, 830, 55); 
+            ctx.textAlign = 'left';
 
             let startY = 110;
             for (let i = 0; i < currentShop.length; i++) {
                 const item = currentShop[i];
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                ctx.beginPath(); ctx.roundRect(40, startY, 820, 60, 18); ctx.fill();
+                
+                // Khung nền item rõ hơn
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.beginPath(); 
+                ctx.roundRect(40, startY, 820, 60, 18); 
+                ctx.fill();
 
-                ctx.fillStyle = '#A78BFA'; ctx.font = 'bold 20px sans-serif';
+                // ID vật phẩm (Màu tím sáng)
+                ctx.fillStyle = '#C084FC'; 
+                ctx.font = 'bold 20px sans-serif';
                 ctx.fillText(`#${item.id}`, 60, startY + 38);
-                ctx.fillStyle = '#E2E8F0';
+
+                // Tên vật phẩm (Màu trắng tinh, rõ tuyệt đối)
+                ctx.fillStyle = '#FFFFFF'; 
+                ctx.font = 'bold 18px sans-serif';
                 ctx.fillText(item.name, 150, startY + 38);
-                ctx.fillStyle = '#9370DB'; ctx.font = '16px sans-serif';
+
+                // Số lượng tồn kho (Màu xanh ngọc sáng)
+                ctx.fillStyle = '#34D399'; 
+                ctx.font = 'bold 16px sans-serif';
                 ctx.fillText(`Còn: ${item.stock}`, 520, startY + 38);
-                ctx.fillStyle = '#C084FC'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'right';
-                ctx.fillText(`${item.price} SWC`, 830, startY + 38); ctx.textAlign = 'left';
+
+                // Giá tiền (Màu vàng sáng nổi bật)
+                ctx.fillStyle = '#FDE047'; 
+                ctx.font = 'bold 20px sans-serif'; 
+                ctx.textAlign = 'right';
+                ctx.fillText(`${item.price} SWC`, 830, startY + 38); 
+                ctx.textAlign = 'left';
 
                 startY += 75;
             }
