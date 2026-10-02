@@ -332,7 +332,7 @@ const HELP_CATEGORIES = [
         label: 'Tổng Quan & Bắt Đầu',
         description: 'Hướng dẫn nhanh, tiền tệ và quy tắc sử dụng bot...',
         emoji: '📖',
-        title: '❀ 𝐎𝐯𝐞𝐫𝐯𝐢𝐞𝐰 & 𝐐𝐮𝐢𝐜𝐤 𝐆𝐮𝐢𝐝𝐞 ❀',
+        title: '❀ 𝐍𝐨𝐯𝐚𝐫𝐢𝐬 𝐒𝐭𝐨𝐫𝐞 ❀',
         content: `Chào mừng bạn đến với hệ thống giải trí và quản lý server!\n\n🔹 **Lệnh mặc định:** Gõ \`.\` trước mỗi lệnh (VD: \`.cap\`, \`.bxh\`, \`.daily\`, \`.trung\`...) hoặc dùng Slash commands \`/\`.\n🔹 **Hệ thống tiền tệ:**\n  ▫ **Tiền Tệ (VNĐ):** Đơn vị tiền tệ chính để giao dịch, mua sắm và gacha trứng Pet.\n  ▫️ **Hộp Quà:** Dùng để mở quà bí ẩn, nhận danh hiệu và thưởng ngẫu nhiên.\n\n✨ **Mẹo dành cho người mới:**\n  ▫️ \`.daily\` để nhận quà điểm danh mỗi ngày.\n  ▫️ \`.trung\` để mở gacha trứng thú cưng.\n  ▫️ \`.mypet\` để xem danh sách thú cưng của bạn.`
     },
     {
